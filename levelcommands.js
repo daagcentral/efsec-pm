@@ -1,0 +1,117 @@
+const { project_status, project_source, payment_mode } = require('./enums')
+const { getProject } = require('./controllers/projectController')
+const { respace } = require('./controllers/utils/modelUtils')
+const main_menu = [
+    [{ text: 'New Items Sale', callback_data: 'add_items_sale' }],
+    [{ text: 'New Bid', callback_data: 'add_bid' }],
+    [{ text: 'New Project', callback_data: 'add_project' }],
+    [{ text: 'Existing Items Sale', callback_data: 'pick_sale' }],
+    [{ text: 'Existing Bid', callback_data: 'pick_bid' }],
+    [{ text: 'Existing Project', callback_data: 'pick_project' }],
+    [{ text: 'Leave', callback_data: 'leave' }],
+]
+
+const main_menu_procurement = [
+    [{ text: 'View BoMs', callback_data: 'view_boms' }],
+    [{ text: 'Send Prices', callback_data: 'send_prices' }],
+    [{ text: 'Ask for Clarification', callback_data: 'ask_clarification' }],
+    [{ text: 'Leave', callback_data: 'leave' }],
+]
+
+const projectPicked = async (id) => {
+    const project = await getProject(id)
+    const source = project.getSource()
+    var menu = [
+        project.getBoM() == '' ?
+            [{
+                text: 'Upload BoM',
+                callback_data: `upload_BoM@${id}`
+            }] : [{
+                text: 'Download BoM',
+                callback_data: `download_BoM@${id}`
+            }]
+        ,
+        project.getBoQ() != '' ?
+            [{
+                text: 'Download Prices',
+                callback_data: `download_BoQ@${id}`
+            }] : [{
+                text: 'Send Procurement Dept. reminder to get prices',
+                callback_data: `send_procurement_reminder@${id}`
+            }]
+        ,
+        [{
+            text: `Change ${source.charAt(0).toUpperCase() + source.slice(1)} Status`,
+            callback_data: `change_project_status@${id}`
+        }],
+        [{
+            text: 'Add Payment Mode',
+            callback_data: `add_payment_mode@${id}`
+        }],
+    ]
+
+    switch (source) {
+        case project_source.BID:
+            menu.push([{
+                text: 'Add or Update Bid Amount',
+                callback_data: `add_or_update_contract_amount@${id}`
+            }])
+            break
+        case project_source.PROJECT:
+            menu.push([{
+                text: 'Add or Update Contract Amount',
+                callback_data: `add_or_update_contract_amount@${id}`
+            }],
+                [{
+                    text: 'Add or Update Deliver By',
+                    callback_data: `add_or_update_deliver_by@${id}`
+                }],
+                [{
+                    text: 'Add or Update Expect Payment Date',
+                    callback_data: `add_or_update_expect_payment_date@${id}`
+                }])
+            break
+
+        case project_source.RETAIL:
+            menu.push([{
+                text: 'Add or Update Sale Amount',
+                callback_data: `add_or_update_contract_amount@${id}`
+            }])
+            break
+        default:
+            break
+    }
+
+    return menu
+}
+
+const generateProjectStatusOptions = (id, currentOption) => {
+    var status_list = Object.values(project_status).filter(
+        status =>
+            status !== currentOption
+    )
+    return status_list.map(status => [{ text: status, callback_data: `statusPicked@${id}@${status}` }])
+}
+
+const generatePaymentModeOptions = (id, currentOption) => {
+    var payment_mode_list = Object.values(payment_mode).filter(
+        mode =>
+            mode !== currentOption
+    )
+    return payment_mode_list.map(mode => [{ text: mode, callback_data: `paymentModePicked@${id}@${mode}` }])
+}
+
+const generateProjectsList = (projects) => {
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `projectPicked@${project.getId()}@${project.getProjectTitle()}` }])
+}
+
+const generateProjectsListforBoMDownload = (projects) => {
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `download_BoM@${project.getId()}`}])
+}
+
+const generateProjectsListforBoQUpload = (projects) => {
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `upload_BoQ@${project.getId()}`}])
+}
+
+module.exports = { main_menu, main_menu_procurement, generateProjectsListforBoMDownload, generateProjectsListforBoQUpload, generateProjectsList, generateProjectStatusOptions, generatePaymentModeOptions, projectPicked }
+
