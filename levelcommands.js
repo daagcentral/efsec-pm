@@ -5,9 +5,9 @@ const main_menu = [
     [{ text: 'New Items Sale', callback_data: 'add_items_sale' }],
     [{ text: 'New Bid', callback_data: 'add_bid' }],
     [{ text: 'New Project', callback_data: 'add_project' }],
-    [{ text: 'Existing Items Sale', callback_data: 'pick_sale' }],
-    [{ text: 'Existing Bid', callback_data: 'pick_bid' }],
-    [{ text: 'Existing Project', callback_data: 'pick_project' }],
+    [{ text: 'Review Prices From Procurement', callback_data: 'download_all_BoQ' }],
+    [{ text: 'Send Margins for Review', callback_data: 'send_margins_for_review' }],
+    [{ text: 'View Prices Ready for Client', callback_data: 'prices_ready_for_client' }],
     [{ text: 'Leave', callback_data: 'leave' }],
 ]
 
@@ -106,12 +106,23 @@ const generateProjectsList = (projects) => {
 }
 
 const generateProjectsListforBoMDownload = (projects) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `download_BoM@${project.getId()}`}])
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `download_BoM@${project.getId()}` }])
 }
 
 const generateProjectsListforBoQUpload = (projects) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `upload_BoQ@${project.getId()}`}])
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `upload_BoQ@${project.getId()}` }])
 }
 
-module.exports = { main_menu, main_menu_procurement, generateProjectsListforBoMDownload, generateProjectsListforBoQUpload, generateProjectsList, generateProjectStatusOptions, generatePaymentModeOptions, projectPicked }
+const generateProjectsListforBoQReview = (projects) => {
+    var list = projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `send_for_manager_review@${project.getId()}` }])
+    if (list.length > 1) {
+        list.push([{
+            text: 'ALL',
+            callback_data: `send_for_manager_review@__ALL__`
+        }])
+    }
+    return list
+}
+
+module.exports = { main_menu, main_menu_procurement, generateProjectsListforBoQReview, generateProjectsListforBoMDownload, generateProjectsListforBoQUpload, generateProjectsList, generateProjectStatusOptions, generatePaymentModeOptions, projectPicked }
 

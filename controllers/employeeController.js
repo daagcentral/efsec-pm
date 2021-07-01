@@ -17,7 +17,7 @@ const addEmployee = async (id, data) => {
             // TODO notify admin for approval
             return 'Record saved successfuly. Waiting for approval from admin';
         } catch (error) {
-            console.log(error)
+            console.log(error.message)
             return 'Failed. Try again.'
         }
     } else {
@@ -99,7 +99,7 @@ const updateEmployee = async (id, data) => {
         await employee.update(data);
         return 'Employee record updated successfuly';
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
         return 'Failed. Try again.'
     }
 }
@@ -112,7 +112,7 @@ const employeeLogout = async (id) => {
         })
         return 'Successfully logged out'
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
         return 'Failed to log out. Try again'
     }
 }
@@ -120,7 +120,7 @@ const employeeLogout = async (id) => {
 const employeeLogin = async (id, password, accessTo) => {
     id = `${id}`
     var employee = await firestore.collection('employees').doc(id).get()
-    console.log(employee)
+
     if (!employee.exists) {
         return {
             success: false,
@@ -160,7 +160,7 @@ const employeeLogin = async (id, password, accessTo) => {
                 remark: 'Successfully logged in.'
             }
         } catch (error) {
-            console.log(error)
+            console.log(error.message)
             return {
                 success: false,
                 remark: 'Failed to start session. Try again.'
@@ -174,7 +174,7 @@ const deleteEmployee = async (id) => {
         await firestore.collection('employees').doc(id).delete();
         return 'Record deleted successfuly';
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
         return 'Failed. Try again.'
     }
 }

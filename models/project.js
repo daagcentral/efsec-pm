@@ -1,7 +1,7 @@
 const enums = require('../enums')
 class Project {
     constructor(id, clientName, projectTitle, site, contractAmount,
-        paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, BoM, status, updates) {
+        paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, revisedBoQ, BoM, status, updates) {
         this.id = id;
         this.clientName = clientName;
         this.projectTitle = projectTitle;
@@ -13,6 +13,7 @@ class Project {
         this.subject = subject;
         this.source = source;
         this.BoQ = BoQ;
+        this.revisedBoQ = revisedBoQ;
         this.BoM = BoM;
         this.status = status; // enums.status.INIT ??
         this.updates = updates;
@@ -49,6 +50,9 @@ class Project {
     }
     getBoQ() {
         return this.BoQ
+    }
+    getRevisedBoQ() {
+        return this.revisedBoQ
     }
     getBoM() {
         return this.BoM

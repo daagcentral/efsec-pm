@@ -9,7 +9,7 @@ const addProject = async (data) => {
         await firestore.collection('projects').doc().set(data);
         return 'Record saved successfuly';
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
         return 'Failed. Try again.'
     }
 }
@@ -30,7 +30,7 @@ const getAllProjects = async () => {
             return projectsArray;
         }
     } catch (error) {
-        console.log(error);
+        console.log(error.message);
         return null
     }
 }
@@ -50,7 +50,8 @@ const getAllOpenProjects = async () => {
             return projectsArray;
         }
     } catch (error) {
-        console.log(error);
+        console.log("here")
+        console.log(error.message);
         return null
     }
 }
@@ -65,7 +66,7 @@ const getAllOpenProjectsWithSource = async (source) => {
             return data;
         }
     } catch (error) {
-        console.log(error);
+        console.log(error.message);
         return null
     }
 }
@@ -80,7 +81,22 @@ const getAllOpenProjectsWithBoM = async () => {
             return data;
         }
     } catch (error) {
-        console.log(error);
+        console.log(error.message);
+        return null
+    }
+}
+
+const getAllOpenProjectsWithBoQ = async () => {
+    try {
+        var open_projects = await getAllOpenProjects()
+        const data = open_projects.filter(project => project.getBoQ() != '' && project.getBoQ() != null)
+        if (data.length == 0) {
+            return ['No records found'];
+        } else {
+            return data;
+        }
+    } catch (error) {
+        console.log(error.message);
         return null
     }
 }
@@ -95,7 +111,7 @@ const getProject = async (id) => {
             return createProjectObject(data);
         }
     } catch (error) {
-        console.log(error);
+        console.log(error.message);
         return null
     }
 }
@@ -106,7 +122,7 @@ const updateProject = async (id, data) => {
         await project.update(data);
         return 'Record updated successfuly';
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
         return 'Failed. Try again.'
     }
 }
@@ -116,7 +132,7 @@ const deleteProject = async (id) => {
         await firestore.collection('projects').doc(id).delete();
         return 'Record deleted successfuly';
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
         return 'Failed. Try again.'
     }
 }
@@ -129,6 +145,7 @@ module.exports = {
     getAllOpenProjects,
     getAllOpenProjectsWithSource,
     getAllOpenProjectsWithBoM,
+    getAllOpenProjectsWithBoQ,
     updateProject,
     deleteProject,
 }

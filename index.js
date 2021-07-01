@@ -2,7 +2,6 @@
 require('dotenv').config()
 global.fetch = require("node-fetch");
 
-const Employee = require('./models/employee');
 const levelCommands = require('./levelcommands')
 const { callbackQueryDistributer } = require('./onCallbackQueryUtils')
 const { addEmployee, employeeLogout, getAllEmployees, getEmployee, updateEmployee, deleteEmployee, employeeLogin } = require('./controllers/employeeController')
@@ -14,26 +13,27 @@ const { sales_bot } = require('./bots')
 sales_bot.on("polling_error", console.log);
 
 sales_bot.onText(/\/help/, async function (msg) {
-    const text = 'Welcome to the EFSEC Sales tool.\
-    \n Below are the available commands \
-    \n \
+    const text = 'Welcome to the EFSEC Sales tool. Below are the available commands.\n\
     \n/start can be used to access main menu. Be sure to login before using this command.\n\
     \n/login followed by password is used to login.\
     \nExample: /login Password00!\n\
     \n/signup - followed by password is used to sign up.\
     \nExample. /signup Password00!\n\
     \n/logout - is used to logout \n\
+    \n\nEDITTING RECORDS:\n\
     \n/pickaproject is used to pick a project and proceed to actions menu.\
     \nIf you know your project\'s id, use /pickaproject followed by id to get straight to action menu.\
     \nExample /pickaproject 1234567\n\
-    \n/addnewproject is used to add a new project.\n\
     \n/pickabid is used to pick a bid and proceed to actions menu.\
     \nIf you know your bid\'s id, use /pickabid followed by id to get straight to action menu.\
     \nExample /pickabid 1234567\n\
-    \n/addnewbid is used to add a new bid.\n\
     \n/pickasale is used to pick a retail sale and proceed to actions menu.\
     \nIf you know your sale\'s id, use /pickasale followed by id to get straight to action menu.\
     \nExample /pickasale 1234567\n\
+    \n\nYOUR DAY TO DAY TOOLS:\n\
+    \n/reviewpricesfromprocurement is used to view all prices to send back to clients.\n\
+    \n/addnewproject is used to add a new project.\n\
+    \n/addnewbid is used to add a new bid.\n\
     \n/addnewsale is used to add a new retail sale.\n\
     \n/clear - is used to declutter 48 hours of operations\n'
 
@@ -88,7 +88,7 @@ sales_bot.onText(/\/signup(.*)/, async function (msg, match) {
         text = await addEmployee(msg.chat.id, employeeData)
         sales_bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
         sales_bot.sendMessage(process.env.EFSEC_ADMIN_CHAT_ID, `New User: ${first_name + ' ' + last_name
-            }. wants access to ${access_to.SALES} bot.`) // notify admin
+            }. Wants access to ${access_to.SALES} bot.`) // notify admin
         sales_bot.sendMessage(msg.chat.id, text)
     }
 })
@@ -134,6 +134,10 @@ sales_bot.onText(/\/addnewbid/, async function (msg) {
 
 sales_bot.onText(/\/addnewsale/, async function (msg) {
     await callbackQueryDistributer(sales_bot, msg, 'add_sale')
+})
+
+sales_bot.onText(/\/reviewpricesfromprocurement/, async function (msg) {
+    await callbackQueryDistributer(sales_bot, msg, 'download_all_BoQ')
 })
 
 sales_bot.onText(/\/pickaproject(.*)/, async function (msg, match) {
@@ -255,7 +259,7 @@ procurement_bot.onText(/\/signup(.*)/, async function (msg, match) {
 
         procurement_bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
         procurement_bot.sendMessage(process.env.EFSEC_ADMIN_CHAT_ID, `New User: ${first_name + ' ' + last_name
-            }. wants access to ${access_to.PROCUREMENT} bot.`) // notify admin
+            }. Wants access to ${access_to.PROCUREMENT} bot.`) // notify admin
         procurement_bot.sendMessage(msg.chat.id, text)
     }
 })

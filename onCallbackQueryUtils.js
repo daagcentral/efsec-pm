@@ -1,8 +1,8 @@
-const { addProject, getAllProjects, getAllOpenProjects, getAllOpenProjectsWithSource, getAllOpenProjectsWithBoM, getProject, updateProject, deleteProject } = require('./controllers/projectController')
+const { addProject, getAllProjects, getAllOpenProjects, getAllOpenProjectsWithSource, getAllOpenProjectsWithBoQ, getAllOpenProjectsWithBoM, getProject, updateProject, deleteProject } = require('./controllers/projectController')
 const { addEmployee, getAllEmployees, employeeLogout, getEmployee, updateEmployee, deleteEmployee } = require('./controllers/employeeController')
-const { generateProjectsList, generateProjectStatusOptions, generateProjectsListforBoQUpload, generateProjectsListforBoMDownload, generatePaymentModeOptions, project_menu, projectPicked, } = require('./levelcommands')
+const { generateProjectsList, generateProjectStatusOptions, generateProjectsListforBoQReview, generateProjectsListforBoQUpload, generateProjectsListforBoMDownload, generatePaymentModeOptions, project_menu, projectPicked, } = require('./levelcommands')
 const { respace } = require('./controllers/utils/modelUtils')
-const { project_source } = require('./enums')
+const { project_source, project_status } = require('./enums')
 const { sales_bot, procurement_bot } = require('./bots')
 
 const sendGoogleForm = function (bot, msg, form) {
@@ -47,11 +47,43 @@ const projectPickedHandler = async (bot, msg, regex) => {
         };
         bot.sendMessage(msg.chat.id, project_name, options);
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
         bot.sendMessage(msg.chat.id, 'Failed to get info on project. Make sure the id is correct')
     }
     return
 }
+
+const sendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
+    const project_id = regex[1]
+    if (project_id === '__ALL__') {
+        // TODO send all to manager
+        bot.sendMessage(msg.chat.id, 'Functionality not implemented yet. Please pick one at a time')
+    } else {
+        const project = await getProject(project_id)
+        let text, options
+        if (project.getRevisedBoQ() == '') {
+            text = "Reply to this text with attached file"
+            options = {
+                reply_markup: JSON.stringify({
+                    force_reply: true,
+                })
+            };
+        } else {
+            text = 'Bill of Materials already uploaded'
+        }
+        const sent = await bot.sendMessage(msg.chat.id, text, options);
+        bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
+            try {
+                const text = await updateProject(project_id, { 'BoQ_revised': file.document.file_id, 'status': project_status.MANAGER_REVIEW })
+                bot.sendMessage(sent.chat.id, text+ '. Waiting for manager\'s review')
+            } catch (error) {
+                console.log(error.message)
+                bot.sendMessage(sent.chat.id, 'Failed. Try again')
+            }
+        })        
+    }
+}
+
 
 // TODO check uploaded file is pdf
 const uploadBoMFromRegexHandler = async (bot, msg, regex) => {
@@ -71,11 +103,10 @@ const uploadBoMFromRegexHandler = async (bot, msg, regex) => {
     const sent = await bot.sendMessage(msg.chat.id, text, options);
     bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
         try {
-            const text = await updateProject(project_id, { 'BoM': file.document.file_id })
-            // TODO notify procurement 
+            const text = await updateProject(project_id, { 'BoM': file.document.file_id, 'status': project_status.PROCUREMENT_REVIEW })
             bot.sendMessage(sent.chat.id, text)
         } catch (error) {
-            console.log(error)
+            console.log(error.message)
             bot.sendMessage(sent.chat.id, 'Failed. Try again')
         }
     })
@@ -92,7 +123,7 @@ const downloadBoMFromRegexHandler = async (bot, msg, regex) => {
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id + 1)
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
     }
     return
 }
@@ -108,7 +139,7 @@ const downloadBoQFromRegexHandler = async (bot, msg, regex) => {
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id + 1)
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
     }
     return
 }
@@ -118,7 +149,6 @@ const uploadBoQFromRegexHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
     const project = await getProject(project_id)
     let text, options
-    console.log(project.getBoQ())
     if (project.getBoQ() == '') {
         text = "Reply to this text with attached file"
         options = {
@@ -132,11 +162,11 @@ const uploadBoQFromRegexHandler = async (bot, msg, regex) => {
     const sent = await bot.sendMessage(msg.chat.id, text, options);
     bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
         try {
-            const text = await updateProject(project_id, { 'BoQ': file.document.file_id })
+            const text = await updateProject(project_id, { 'BoQ': file.document.file_id, 'status': project_status.SALES_REVIEW_1 })
             // TODO notify sales 
             bot.sendMessage(sent.chat.id, text)
         } catch (error) {
-            console.log(error)
+            console.log(error.message)
             bot.sendMessage(sent.chat.id, 'Failed. Try again')
         }
     })
@@ -273,6 +303,24 @@ const viewBoMsHandler = async (bot, msg) => {
     return
 }
 
+const downloadAllBoQHandler = async (bot, msg) => {
+    // TODO track status of bom and boq to see where in the cycle they are
+    var open_projects_with_BoQ = await getAllOpenProjectsWithBoQ();
+    open_projects_with_BoQ
+        .filter(project => project.getStatus() === project_status.SALES_REVIEW_1)
+        .forEach(async (project) => {
+            const BoQ_file_id = project.getBoM()
+            try {
+                const channel_msg = await sales_bot.sendDocument(process.env.EFSEC_ADMIN_CHAT_ID, BoQ_file_id)
+                await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
+                await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
+            } catch (error) {
+                console.log(error.message)
+            }
+        });
+    return
+}
+
 const sendPricesHandler = async (bot, msg) => {
     const open_projects_with_BoM = await getAllOpenProjectsWithBoM();
     if (open_projects_with_BoM) {
@@ -290,6 +338,27 @@ const sendPricesHandler = async (bot, msg) => {
 
 }
 
+const sendMarginsHandler = async (bot, msg) => {
+    var open_projects_with_BoQ = await getAllOpenProjectsWithBoQ();
+    if (open_projects_with_BoQ === null) {
+        bot.sendMessage(msg.chat.id, "There are no BoQs awaiting review");
+    }
+    open_projects_with_BoQ = open_projects_with_BoQ.filter(project => project.getStatus() === project_status.SALES_REVIEW_1)
+    if (open_projects_with_BoQ) {
+        const open_projects_list = generateProjectsListforBoQReview(open_projects_with_BoQ)
+        opts = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: open_projects_list
+            })
+        };
+        bot.sendMessage(msg.chat.id, "Get reviews for...", opts);
+    } else {
+        bot.sendMessage(msg.chat.id, "There are no BoQs awaiting review");
+    }
+    return
+
+}
+
 async function callbackQueryDistributer(bot, msg, action) {
     // get data passed by button clicked regex match
     const projectPickedFromRegex = action.match(/projectPicked@(.*)@(.*)/) // project id @ name
@@ -299,6 +368,7 @@ async function callbackQueryDistributer(bot, msg, action) {
     const uploadBoQFromRegex = action.match(/upload_BoQ@(.*)/) // project id
     const downloadBoMFromRegex = action.match(/download_BoM@(.*)/) // project id
     const downloadBoQFromRegex = action.match(/download_BoQ@(.*)/) // project id
+    const sendForManagerReviewFromRegex = action.match(/send_for_manager_review@(.*)/) // project id
     const changeProjectStatusFromRegex = action.match(/change_project_status@(.*)/) // project id
     const addOrUpdateContractAmountFromRegex = action.match(/add_or_update_contract_amount@(.*)/) // project id
     const addPaymentModeFromRegex = action.match(/add_payment_mode@(.*)/) // project id
@@ -315,6 +385,8 @@ async function callbackQueryDistributer(bot, msg, action) {
         await downloadBoMFromRegexHandler(bot, msg, downloadBoMFromRegex)
     } else if (downloadBoQFromRegex !== null) {
         await downloadBoQFromRegexHandler(bot, msg, downloadBoQFromRegex)
+    } else if (sendForManagerReviewFromRegex !== null) {
+        await sendForManagerReviewFromRegexHandler(bot, msg, sendForManagerReviewFromRegex)
     } else if (changeProjectStatusFromRegex !== null) {
         await changeProjectStatusHandler(bot, msg, changeProjectStatusFromRegex)
     } else if (statusPickedFromRegex !== null) {
@@ -355,8 +427,14 @@ async function callbackQueryDistributer(bot, msg, action) {
             case 'view_boms':
                 await viewBoMsHandler(bot, msg)
                 break
+            case 'download_all_BoQ':
+                await downloadAllBoQHandler(bot, msg)
+                break
             case 'send_prices':
                 await sendPricesHandler(bot, msg)
+                break
+            case 'send_margins_for_review':
+                await sendMarginsHandler(bot, msg)
                 break
             case 'ask_clarification':
                 break

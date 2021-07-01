@@ -12,6 +12,7 @@ const createProjectObject = (doc) => {
         doc.data().subject,
         doc.data().source,
         doc.data().BoQ,
+        doc.data().BoQ_revised,
         doc.data().BoM,
         doc.data().status,
         doc.data().updates
