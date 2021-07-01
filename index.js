@@ -31,7 +31,9 @@ sales_bot.onText(/\/help/, async function (msg) {
     \nIf you know your sale\'s id, use /pickasale followed by id to get straight to action menu.\
     \nExample /pickasale 1234567\n\
     \n\nYOUR DAY TO DAY TOOLS:\n\
-    \n/reviewpricesfromprocurement is used to view all prices to send back to clients.\n\
+    \n/viewpricesfromprocurement is used to view all prices to send back to clients.\n\
+    \n/uploadmarginsformanagerreview is used to send margins to management\n\
+    \n/viewpricesreadyforclient is used to view prices ready to be sent to client.\n\
     \n/addnewproject is used to add a new project.\n\
     \n/addnewbid is used to add a new bid.\n\
     \n/addnewsale is used to add a new retail sale.\n\
@@ -136,8 +138,16 @@ sales_bot.onText(/\/addnewsale/, async function (msg) {
     await callbackQueryDistributer(sales_bot, msg, 'add_sale')
 })
 
-sales_bot.onText(/\/reviewpricesfromprocurement/, async function (msg) {
+sales_bot.onText(/\/viewpricesfromprocurement/, async function (msg) {
     await callbackQueryDistributer(sales_bot, msg, 'download_all_BoQ')
+})
+
+sales_bot.onText(/\/viewpricesreadyforclient/, async function (msg) {
+    await callbackQueryDistributer(sales_bot, msg, 'prices_ready_for_client')
+})
+
+sales_bot.onText(/\/uploadmarginsformanagerreview/, async function (msg) {
+    await callbackQueryDistributer(sales_bot, msg, 'send_margins_for_review')
 })
 
 sales_bot.onText(/\/pickaproject(.*)/, async function (msg, match) {
@@ -293,6 +303,14 @@ procurement_bot.onText(/\/logout/, async function (msg) {
     const user_id = msg.chat.id
     const text = await employeeLogout(user_id)
     procurement_bot.sendMessage(msg.chat.id, text);
+})
+
+procurement_bot.onText(/\/viewBoMs/, async function (msg) {
+    await callbackQueryDistributer(procurement_bot, msg, 'view_boms')
+})
+
+procurement_bot.onText(/\/sendprices/, async function (msg) {
+    await callbackQueryDistributer(procurement_bot, msg, 'send_prices')
 })
 
 procurement_bot.onText(/\/clear/, async function (msg) {

@@ -6,7 +6,7 @@ const main_menu = [
     [{ text: 'New Bid', callback_data: 'add_bid' }],
     [{ text: 'New Project', callback_data: 'add_project' }],
     [{ text: 'Review Prices From Procurement', callback_data: 'download_all_BoQ' }],
-    [{ text: 'Send Margins for Review', callback_data: 'send_margins_for_review' }],
+    [{ text: 'Send Margins to Management for Review', callback_data: 'send_margins_for_review' }],
     [{ text: 'View Prices Ready for Client', callback_data: 'prices_ready_for_client' }],
     [{ text: 'Leave', callback_data: 'leave' }],
 ]

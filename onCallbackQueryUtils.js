@@ -1,4 +1,4 @@
-const { addProject, getAllProjects, getAllOpenProjects, getAllOpenProjectsWithSource, getAllOpenProjectsWithBoQ, getAllOpenProjectsWithBoM, getProject, updateProject, deleteProject } = require('./controllers/projectController')
+const { addProject, getAllProjects, getAllOpenProjects, getAllOpenProjectsWithSource, getAllOpenProjectsWithRevisedBoQ, getAllOpenProjectsWithBoQ, getAllOpenProjectsWithBoM, getProject, updateProject, deleteProject } = require('./controllers/projectController')
 const { addEmployee, getAllEmployees, employeeLogout, getEmployee, updateEmployee, deleteEmployee } = require('./controllers/employeeController')
 const { generateProjectsList, generateProjectStatusOptions, generateProjectsListforBoQReview, generateProjectsListforBoQUpload, generateProjectsListforBoMDownload, generatePaymentModeOptions, project_menu, projectPicked, } = require('./levelcommands')
 const { respace } = require('./controllers/utils/modelUtils')
@@ -55,6 +55,7 @@ const projectPickedHandler = async (bot, msg, regex) => {
 
 const sendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
+    console.log("here")
     if (project_id === '__ALL__') {
         // TODO send all to manager
         bot.sendMessage(msg.chat.id, 'Functionality not implemented yet. Please pick one at a time')
@@ -62,25 +63,25 @@ const sendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
         const project = await getProject(project_id)
         let text, options
         if (project.getRevisedBoQ() == '') {
-            text = "Reply to this text with attached file"
+            text = "Reply to this text with attached file. \n\n NOTE: ATTACHMENT MUST BE EXCEL OR PDF FILE"
             options = {
                 reply_markup: JSON.stringify({
                     force_reply: true,
                 })
             };
         } else {
-            text = 'Bill of Materials already uploaded'
+            text = 'Prices already sent for review'
         }
         const sent = await bot.sendMessage(msg.chat.id, text, options);
         bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
             try {
                 const text = await updateProject(project_id, { 'BoQ_revised': file.document.file_id, 'status': project_status.MANAGER_REVIEW })
-                bot.sendMessage(sent.chat.id, text+ '. Waiting for manager\'s review')
+                bot.sendMessage(sent.chat.id, text + '. Waiting for manager\'s review')
             } catch (error) {
                 console.log(error.message)
                 bot.sendMessage(sent.chat.id, 'Failed. Try again')
             }
-        })        
+        })
     }
 }
 
@@ -287,8 +288,7 @@ const addOrUpdatePaymentModeHandler = async (bot, msg, regex) => {
 }
 
 const viewBoMsHandler = async (bot, msg) => {
-    const open_projects_with_BoM = await getAllOpenProjectsWithBoM();
-
+    var open_projects_with_BoM = (await getAllOpenProjectsWithBoM()).filter(project => project.getStatus() == project_status.PROCUREMENT_REVIEW)
     if (open_projects_with_BoM) {
         const open_projects_list = generateProjectsListforBoMDownload(open_projects_with_BoM)
         opts = {
@@ -322,7 +322,7 @@ const downloadAllBoQHandler = async (bot, msg) => {
 }
 
 const sendPricesHandler = async (bot, msg) => {
-    const open_projects_with_BoM = await getAllOpenProjectsWithBoM();
+    const open_projects_with_BoM = (await getAllOpenProjectsWithBoM()).filter(project => project.getBoQ == '');
     if (open_projects_with_BoM) {
         const open_projects_list = generateProjectsListforBoQUpload(open_projects_with_BoM)
         opts = {
@@ -338,6 +338,22 @@ const sendPricesHandler = async (bot, msg) => {
 
 }
 
+const priceForClientsHandler = async (bot, msg) => {
+
+    var open_projects_with_revised_BoQ = await getAllOpenProjectsWithRevisedBoQ();
+    if (open_projects_with_revised_BoQ === null) {
+        bot.sendMessage(msg.chat.id, "No prices ready for client")
+        return
+    }
+    open_projects_with_revised_BoQ
+        .forEach(async (project) => {
+            const revised_BoQ_file_id = project.getRevisedBoQ()
+            const channel_msg = await sales_bot.sendDocument(process.env.EFSEC_ADMIN_CHAT_ID, revised_BoQ_file_id)
+            await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
+            await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
+        });
+    return
+}
 const sendMarginsHandler = async (bot, msg) => {
     var open_projects_with_BoQ = await getAllOpenProjectsWithBoQ();
     if (open_projects_with_BoQ === null) {
@@ -436,7 +452,8 @@ async function callbackQueryDistributer(bot, msg, action) {
             case 'send_margins_for_review':
                 await sendMarginsHandler(bot, msg)
                 break
-            case 'ask_clarification':
+            case 'prices_ready_for_client':
+                await priceForClientsHandler(bot, msg)
                 break
             case 'leave':
                 leaveHandler(bot, msg)

@@ -1,4 +1,5 @@
 const admin = require('../db');
+const { project_status } = require('../enums');
 const firestore = admin.firestore()
 
 const { createProjectObject } = require('./utils/projectUtils')
@@ -101,6 +102,24 @@ const getAllOpenProjectsWithBoQ = async () => {
     }
 }
 
+const getAllOpenProjectsWithRevisedBoQ = async () => {
+    try {
+        var open_projects = await getAllOpenProjects()
+        const data = open_projects.filter(project =>
+            project.getRevisedBoQ() != '' &&
+            project.getRevisedBoQ() != null &&
+            project.getStatus() == project_status.SALES_REVIEW_2)
+        if (data.length == 0) {
+            return null;
+        } else {
+            return data;
+        }
+    } catch (error) {
+        console.log(error.message);
+        return null
+    }
+}
+
 const getProject = async (id) => {
     try {
         const project = await firestore.collection('projects').doc(id);
@@ -143,6 +162,7 @@ module.exports = {
     getAllProjects,
     getProject,
     getAllOpenProjects,
+    getAllOpenProjectsWithRevisedBoQ,
     getAllOpenProjectsWithSource,
     getAllOpenProjectsWithBoM,
     getAllOpenProjectsWithBoQ,

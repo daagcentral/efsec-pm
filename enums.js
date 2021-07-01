@@ -2,10 +2,10 @@ const project_status = {
     INIT: 'initialize',
     PENDING: 'pending',
     SIGNED: 'signed',
-    PROCUREMENT_REVIEW: 'procurement_review',
-    SALES_REVIEW_1: 'sales_review_1', // when procurement returns
-    SALES_REVIEW_2: 'sales_review_2', // when managers return
-    MANAGER_REVIEW: 'manager_review',
+    PROCUREMENT_REVIEW: 'under precurement review',
+    SALES_REVIEW_1: 'under sales review', // when procurement returns
+    MANAGER_REVIEW: 'under manager review',
+    SALES_REVIEW_2: 'ready for client', // when managers return
     CLOSED: 'closed',
 }
 
@@ -41,6 +41,7 @@ const project_source = {
 const access_to = {
     SALES: 'sales',
     PROCUREMENT: 'procurement',
+    MANAGEMENT: 'management',
     ADMIN: 'admin'
 }
 
