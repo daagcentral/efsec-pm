@@ -31,6 +31,7 @@ sales_bot.onText(/\/help/, async function (msg) {
     \nIf you know your sale\'s id, use /pickasale followed by id to get straight to action menu.\
     \nExample /pickasale 1234567\n\
     \n\nYOUR DAY TO DAY TOOLS:\n\
+    \n/uploadBoM is used to upload Bill of Materials for existing projects.\n\
     \n/viewpricesfromprocurement is used to view all prices to send back to clients.\n\
     \n/uploadmarginsformanagerreview is used to send margins to management\n\
     \n/viewpricesreadyforclient is used to view prices ready to be sent to client.\n\
@@ -67,7 +68,7 @@ sales_bot.onText(/\/start/, async function (msg) {
         }
 
     } else {
-        text = 'Employee doesn\'t exist. Please sign up or talk to admin'
+        text = 'Employee doesn\'t exist. Please sign up using /signup followed by your password \nExample. /signup Password00!\n'
     }
     sales_bot.sendMessage(msg.chat.id, text, options);
 })
@@ -138,8 +139,12 @@ sales_bot.onText(/\/addnewsale/, async function (msg) {
     await callbackQueryDistributer(sales_bot, msg, 'add_sale')
 })
 
+sales_bot.onText(/\/uploadBoM/, async function (msg) {
+    await callbackQueryDistributer(sales_bot, msg, 'send_bom')
+})
+
 sales_bot.onText(/\/viewpricesfromprocurement/, async function (msg) {
-    await callbackQueryDistributer(sales_bot, msg, 'download_all_BoQ')
+    await callbackQueryDistributer(sales_bot, msg, 'view_boqs')
 })
 
 sales_bot.onText(/\/viewpricesreadyforclient/, async function (msg) {
@@ -244,7 +249,7 @@ procurement_bot.onText(/\/start/, async function (msg) {
             }
         }
     } else {
-        text = 'Employee doesn\'t exist. Please sign up or talk to admin'
+        text = 'Employee doesn\'t exist. Please sign up using /signup followed by your password \nExample. /signup Password00!\n'
     }
     procurement_bot.sendMessage(msg.chat.id, text, options);
 })

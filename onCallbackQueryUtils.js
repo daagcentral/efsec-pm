@@ -1,6 +1,6 @@
 const { addProject, getAllProjects, getAllOpenProjects, getAllOpenProjectsWithSource, getAllOpenProjectsWithRevisedBoQ, getAllOpenProjectsWithBoQ, getAllOpenProjectsWithBoM, getProject, updateProject, deleteProject } = require('./controllers/projectController')
 const { addEmployee, getAllEmployees, employeeLogout, getEmployee, updateEmployee, deleteEmployee } = require('./controllers/employeeController')
-const { generateProjectsList, generateProjectStatusOptions, generateProjectsListforBoQReview, generateProjectsListforBoQUpload, generateProjectsListforBoMDownload, generatePaymentModeOptions, project_menu, projectPicked, } = require('./levelcommands')
+const { generateProjectsList, generateProjectStatusOptions, generateProjectsListforBoMUpload, generateProjectsListforBoQDownload, generateProjectsListforBoQReview, generateProjectsListforBoQUpload, generateProjectsListforBoMDownload, generatePaymentModeOptions, project_menu, projectPicked, } = require('./levelcommands')
 const { respace } = require('./controllers/utils/modelUtils')
 const { project_source, project_status } = require('./enums')
 const { sales_bot, procurement_bot } = require('./bots')
@@ -55,34 +55,31 @@ const projectPickedHandler = async (bot, msg, regex) => {
 
 const sendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
-    console.log("here")
-    if (project_id === '__ALL__') {
-        // TODO send all to manager
-        bot.sendMessage(msg.chat.id, 'Functionality not implemented yet. Please pick one at a time')
+    const project = await getProject(project_id)
+    let text, options
+    console.log(project.getStatus())
+    if (project.getStatus() == project_status.SALES_REVIEW_1) {
+        text = "Reply to this text with attached file. \n\n NOTE: ATTACHMENT MUST BE EXCEL OR PDF FILE"
+        options = {
+            reply_markup: JSON.stringify({
+                force_reply: true,
+            })
+        };
     } else {
-        const project = await getProject(project_id)
-        let text, options
-        if (project.getRevisedBoQ() == '') {
-            text = "Reply to this text with attached file. \n\n NOTE: ATTACHMENT MUST BE EXCEL OR PDF FILE"
-            options = {
-                reply_markup: JSON.stringify({
-                    force_reply: true,
-                })
-            };
-        } else {
-            text = 'Prices already sent for review'
-        }
-        const sent = await bot.sendMessage(msg.chat.id, text, options);
-        bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
-            try {
-                const text = await updateProject(project_id, { 'BoQ_revised': file.document.file_id, 'status': project_status.MANAGER_REVIEW })
-                bot.sendMessage(sent.chat.id, text + '. Waiting for manager\'s review')
-            } catch (error) {
-                console.log(error.message)
-                bot.sendMessage(sent.chat.id, 'Failed. Try again')
-            }
-        })
+        text = 'Prices already sent for review'
     }
+    const sent = await bot.sendMessage(msg.chat.id, text, options);
+    bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
+        try {
+            await updateProject(project_id, {'BoQ_revised': file.document.file_id})
+            const text = await updateProject(project_id, { 'status': project_status.MANAGER_REVIEW })
+            bot.sendMessage(sent.chat.id, text + '. Waiting for manager\'s review')
+        } catch (error) {
+            console.log(error.message)
+            bot.sendMessage(sent.chat.id, 'Failed. Try again')
+        }
+    })
+
 }
 
 
@@ -131,7 +128,6 @@ const downloadBoMFromRegexHandler = async (bot, msg, regex) => {
 
 const downloadBoQFromRegexHandler = async (bot, msg, regex) => {
     try {
-
         const project_id = regex[1]
         const project = await getProject(project_id)
         const BoM_file_id = project.getBoQ()
@@ -163,9 +159,10 @@ const uploadBoQFromRegexHandler = async (bot, msg, regex) => {
     const sent = await bot.sendMessage(msg.chat.id, text, options);
     bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
         try {
-            const text = await updateProject(project_id, { 'BoQ': file.document.file_id, 'status': project_status.SALES_REVIEW_1 })
+            await updateProject(project_id, { 'BoQ': file.document.file_id})
+            const text = await updateProject(project_id, { 'status': project_status.SALES_REVIEW_1 })
             // TODO notify sales 
-            bot.sendMessage(sent.chat.id, text)
+            bot.sendMessage(sent.chat.id, text + '. Waiting review from sales dept.')
         } catch (error) {
             console.log(error.message)
             bot.sendMessage(sent.chat.id, 'Failed. Try again')
@@ -288,42 +285,64 @@ const addOrUpdatePaymentModeHandler = async (bot, msg, regex) => {
 }
 
 const viewBoMsHandler = async (bot, msg) => {
-    var open_projects_with_BoM = (await getAllOpenProjectsWithBoM()).filter(project => project.getStatus() == project_status.PROCUREMENT_REVIEW)
+    var open_projects_with_BoM = await getAllOpenProjectsWithBoM()
     if (open_projects_with_BoM) {
+        open_projects_with_BoM = open_projects_with_BoM.filter(project => project.getStatus() == project_status.PROCUREMENT_REVIEW)
         const open_projects_list = generateProjectsListforBoMDownload(open_projects_with_BoM)
-        opts = {
+        const opts = {
             reply_markup: JSON.stringify({
                 inline_keyboard: open_projects_list
             })
         };
-        bot.sendMessage(msg.chat.id, "Download BoM for...", opts);
+        const text = open_projects_with_BoM.length === 0 ? 'No BoMs ready for review' : "Download BoM for..."
+        bot.sendMessage(msg.chat.id, text, opts);
     } else {
         bot.sendMessage(msg.chat.id, "There are no open projects with uploaded BoMs");
     }
     return
 }
 
-const downloadAllBoQHandler = async (bot, msg) => {
-    // TODO track status of bom and boq to see where in the cycle they are
-    var open_projects_with_BoQ = await getAllOpenProjectsWithBoQ();
-    open_projects_with_BoQ
-        .filter(project => project.getStatus() === project_status.SALES_REVIEW_1)
-        .forEach(async (project) => {
-            const BoQ_file_id = project.getBoM()
-            try {
-                const channel_msg = await sales_bot.sendDocument(process.env.EFSEC_ADMIN_CHAT_ID, BoQ_file_id)
-                await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
-                await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
-            } catch (error) {
-                console.log(error.message)
-            }
-        });
+const viewBoQsHandler = async (bot, msg) => {
+    var open_projects_with_BoQ = await getAllOpenProjectsWithBoQ()
+    if (open_projects_with_BoQ) {
+        open_projects_with_BoQ = open_projects_with_BoQ.filter(project => project.getStatus() == project_status.SALES_REVIEW_1)
+        const open_projects_list = generateProjectsListforBoQDownload(open_projects_with_BoQ)
+        const opts = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: open_projects_list
+            })
+        };
+        const text = open_projects_with_BoQ.length === 0 ? 'There are no BoQs ready for review.' : "Download BoQ for..."
+        bot.sendMessage(msg.chat.id, text, opts);
+    } else {
+        bot.sendMessage(msg.chat.id, "There are no BoQs ready for review.");
+    }
     return
 }
 
+const sendMarginsHandler = async (bot, msg) => {
+    var open_projects_with_BoQ = await getAllOpenProjectsWithBoQ();
+    if (open_projects_with_BoQ) {
+        open_projects_with_BoQ = open_projects_with_BoQ.filter(project => project.getStatus() == project_status.SALES_REVIEW_1)
+        const open_projects_list = generateProjectsListforBoQReview(open_projects_with_BoQ)
+        opts = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: open_projects_list
+            })
+        };
+        const text = open_projects_with_BoQ.length === 0 ? 'There are no BoQs awaiting review.' : "Get reviews for..."
+        bot.sendMessage(msg.chat.id, text, opts);
+    } else {
+        bot.sendMessage(msg.chat.id, "There are no BoQs awaiting review.");
+    }
+    return
+}
+
+
 const sendPricesHandler = async (bot, msg) => {
-    const open_projects_with_BoM = (await getAllOpenProjectsWithBoM()).filter(project => project.getBoQ == '');
+    var open_projects_with_BoM = await getAllOpenProjectsWithBoM()
     if (open_projects_with_BoM) {
+        open_projects_with_BoM = open_projects_with_BoM.filter(project => project.getStatus() == project_status.PROCUREMENT_REVIEW);
         const open_projects_list = generateProjectsListforBoQUpload(open_projects_with_BoM)
         opts = {
             reply_markup: JSON.stringify({
@@ -335,14 +354,31 @@ const sendPricesHandler = async (bot, msg) => {
         bot.sendMessage(msg.chat.id, "There are no open projects with uploaded BoMs");
     }
     return
+}
 
+const sendBoMsHandler = async (bot, msg) => {
+    var open_projects_with_no_BoM = await getAllOpenProjects()
+    if (open_projects_with_no_BoM) {
+        open_projects_with_no_BoM = open_projects_with_no_BoM.filter(project => project.getBoM() == '');
+        const open_projects_list = generateProjectsListforBoMUpload(open_projects_with_no_BoM)
+        opts = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: open_projects_list
+            })
+        };
+        const text = open_projects_with_no_BoM.length === 0 ? 'There are no open projects without BoMs.' : "Upload BoM for..."
+        bot.sendMessage(msg.chat.id, text, opts);
+    } else {
+        bot.sendMessage(msg.chat.id, 'There are no open projects without BoMs.');
+    }
+    return
 }
 
 const priceForClientsHandler = async (bot, msg) => {
 
     var open_projects_with_revised_BoQ = await getAllOpenProjectsWithRevisedBoQ();
     if (open_projects_with_revised_BoQ === null) {
-        bot.sendMessage(msg.chat.id, "No prices ready for client")
+        bot.sendMessage(msg.chat.id, "There are no prices ready for client.")
         return
     }
     open_projects_with_revised_BoQ
@@ -354,26 +390,7 @@ const priceForClientsHandler = async (bot, msg) => {
         });
     return
 }
-const sendMarginsHandler = async (bot, msg) => {
-    var open_projects_with_BoQ = await getAllOpenProjectsWithBoQ();
-    if (open_projects_with_BoQ === null) {
-        bot.sendMessage(msg.chat.id, "There are no BoQs awaiting review");
-    }
-    open_projects_with_BoQ = open_projects_with_BoQ.filter(project => project.getStatus() === project_status.SALES_REVIEW_1)
-    if (open_projects_with_BoQ) {
-        const open_projects_list = generateProjectsListforBoQReview(open_projects_with_BoQ)
-        opts = {
-            reply_markup: JSON.stringify({
-                inline_keyboard: open_projects_list
-            })
-        };
-        bot.sendMessage(msg.chat.id, "Get reviews for...", opts);
-    } else {
-        bot.sendMessage(msg.chat.id, "There are no BoQs awaiting review");
-    }
-    return
 
-}
 
 async function callbackQueryDistributer(bot, msg, action) {
     // get data passed by button clicked regex match
@@ -440,11 +457,14 @@ async function callbackQueryDistributer(bot, msg, action) {
             case 'pick_bid':
                 await pickProjectHandler(bot, msg, project_source.BID)
                 break
+            case 'send_bom':
+                    await sendBoMsHandler(bot, msg)
+                    break
             case 'view_boms':
                 await viewBoMsHandler(bot, msg)
                 break
-            case 'download_all_BoQ':
-                await downloadAllBoQHandler(bot, msg)
+            case 'view_boqs':
+                await viewBoQsHandler(bot, msg)
                 break
             case 'send_prices':
                 await sendPricesHandler(bot, msg)

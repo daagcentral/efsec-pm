@@ -5,8 +5,9 @@ const main_menu = [
     [{ text: 'New Items Sale', callback_data: 'add_items_sale' }],
     [{ text: 'New Bid', callback_data: 'add_bid' }],
     [{ text: 'New Project', callback_data: 'add_project' }],
-    [{ text: 'Review Prices From Procurement', callback_data: 'download_all_BoQ' }],
-    [{ text: 'Send Margins to Management for Review', callback_data: 'send_margins_for_review' }],
+    [{ text: 'Upload BoM', callback_data: 'send_bom' }],
+    [{ text: 'View Prices from Procurement', callback_data: 'view_boqs' }],
+    [{ text: 'Send Margins for Review', callback_data: 'send_margins_for_review' }],
     [{ text: 'View Prices Ready for Client', callback_data: 'prices_ready_for_client' }],
     [{ text: 'Leave', callback_data: 'leave' }],
 ]
@@ -22,14 +23,11 @@ const projectPicked = async (id) => {
     const project = await getProject(id)
     const source = project.getSource()
     var menu = [
-        project.getBoM() == '' ?
+        project.getBoM() != '' ?
             [{
-                text: 'Upload BoM',
-                callback_data: `upload_BoM@${id}`
-            }] : [{
                 text: 'Download BoM',
                 callback_data: `download_BoM@${id}`
-            }]
+            }] : []
         ,
         project.getBoQ() != '' ?
             [{
@@ -41,7 +39,7 @@ const projectPicked = async (id) => {
             }]
         ,
         [{
-            text: `Change ${source.charAt(0).toUpperCase() + source.slice(1)} Status`,
+            text: `Change Status`,
             callback_data: `change_project_status@${id}`
         }],
         [{
@@ -88,7 +86,11 @@ const projectPicked = async (id) => {
 const generateProjectStatusOptions = (id, currentOption) => {
     var status_list = Object.values(project_status).filter(
         status =>
-            status !== currentOption
+            status !== currentOption &&
+            status !== project_status.PROCUREMENT_REVIEW &&
+            status !== project_status.SALES_REVIEW_1 &&
+            status !== project_status.SALES_REVIEW_2 &&
+            status !== project_status.MANAGER_REVIEW
     )
     return status_list.map(status => [{ text: status, callback_data: `statusPicked@${id}@${status}` }])
 }
@@ -109,20 +111,33 @@ const generateProjectsListforBoMDownload = (projects) => {
     return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `download_BoM@${project.getId()}` }])
 }
 
+const generateProjectsListforBoQDownload = (projects) => {
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `download_BoQ@${project.getId()}` }])
+}
+
+const generateProjectsListforBoMUpload = (projects) => {
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `upload_BoM@${project.getId()}` }])
+}
+
 const generateProjectsListforBoQUpload = (projects) => {
     return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `upload_BoQ@${project.getId()}` }])
 }
 
 const generateProjectsListforBoQReview = (projects) => {
-    var list = projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `send_for_manager_review@${project.getId()}` }])
-    if (list.length > 1) {
-        list.push([{
-            text: 'ALL',
-            callback_data: `send_for_manager_review@__ALL__`
-        }])
-    }
-    return list
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `send_for_manager_review@${project.getId()}` }])
 }
 
-module.exports = { main_menu, main_menu_procurement, generateProjectsListforBoQReview, generateProjectsListforBoMDownload, generateProjectsListforBoQUpload, generateProjectsList, generateProjectStatusOptions, generatePaymentModeOptions, projectPicked }
+module.exports = {
+    main_menu,
+    main_menu_procurement,
+    generateProjectsListforBoMUpload,
+    generateProjectsListforBoQDownload,
+    generateProjectsListforBoQReview,
+    generateProjectsListforBoMDownload,
+    generateProjectsListforBoQUpload,
+    generateProjectsList,
+    generateProjectStatusOptions,
+    generatePaymentModeOptions,
+    projectPicked
+}
 

@@ -75,9 +75,9 @@ const getAllOpenProjectsWithSource = async (source) => {
 const getAllOpenProjectsWithBoM = async () => {
     try {
         var open_projects = await getAllOpenProjects()
-        const data = open_projects.filter(project => project.getBoM() != '')
+        const data = open_projects.filter(project => project.getBoM() != '' && project.getBoM() != null)
         if (data.length == 0) {
-            return ['No records found'];
+            return null;
         } else {
             return data;
         }
@@ -92,7 +92,7 @@ const getAllOpenProjectsWithBoQ = async () => {
         var open_projects = await getAllOpenProjects()
         const data = open_projects.filter(project => project.getBoQ() != '' && project.getBoQ() != null)
         if (data.length == 0) {
-            return ['No records found'];
+            return null;
         } else {
             return data;
         }
