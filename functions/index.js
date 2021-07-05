@@ -1,7 +1,7 @@
 require('dotenv').config()
 global.fetch = require("node-fetch");
 global.functions = require('firebase-functions')
-global.env_config = Object.keys(functions.config()).length ? functions.config() : require('../env.json')
+global.env_config = Object.keys(functions.config()).length ? functions.config() : require('./env.json')
 const levelCommands = require('./levelcommands')
 const { callbackQueryDistributer } = require('./onCallbackQueryUtils')
 const { addEmployee, employeeLogout, getAllEmployees, getEmployee, updateEmployee, deleteEmployee, employeeLogin } = require('./controllers/employeeController')
