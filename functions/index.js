@@ -1,12 +1,15 @@
-
 require('dotenv').config()
 global.fetch = require("node-fetch");
-
+global.functions = require('firebase-functions')
+global.env_config = Object.keys(functions.config()).length ? functions.config() : require('../env.json')
 const levelCommands = require('./levelcommands')
 const { callbackQueryDistributer } = require('./onCallbackQueryUtils')
 const { addEmployee, employeeLogout, getAllEmployees, getEmployee, updateEmployee, deleteEmployee, employeeLogin } = require('./controllers/employeeController')
 const { access_to } = require('./enums')
 
+exports.hi = functions.https.onRequest((req, res) => {
+    res.send("hi")
+});
 
 // ########################### SALES BOT START ########################### //
 const { sales_bot } = require('./bots')
@@ -90,7 +93,7 @@ sales_bot.onText(/\/signup(.*)/, async function (msg, match) {
         }
         text = await addEmployee(msg.chat.id, employeeData)
         sales_bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
-        sales_bot.sendMessage(process.env.EFSEC_ADMIN_CHAT_ID, `New User: ${first_name + ' ' + last_name
+        sales_bot.sendMessage(env_config.service.efsec_admin_chat_id, `New User: ${first_name + ' ' + last_name
             }. Wants access to ${access_to.SALES} bot.`) // notify admin
         sales_bot.sendMessage(msg.chat.id, text)
     }
@@ -273,7 +276,7 @@ procurement_bot.onText(/\/signup(.*)/, async function (msg, match) {
         text = await addEmployee(msg.chat.id, employeeData)
 
         procurement_bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
-        procurement_bot.sendMessage(process.env.EFSEC_ADMIN_CHAT_ID, `New User: ${first_name + ' ' + last_name
+        procurement_bot.sendMessage(env_config.service.efsec_admin_chat_id, `New User: ${first_name + ' ' + last_name
             }. Wants access to ${access_to.PROCUREMENT} bot.`) // notify admin
         procurement_bot.sendMessage(msg.chat.id, text)
     }

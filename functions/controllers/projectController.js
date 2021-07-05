@@ -42,7 +42,7 @@ const getAllOpenProjects = async () => {
         const data = await projects.where('status', '!=', 'closed').get();
         const projectsArray = [];
         if (data.empty) {
-            return ['No records found'];
+            return null;
         } else {
             data.forEach(doc => {
                 const project = createProjectObject(doc)
@@ -51,7 +51,6 @@ const getAllOpenProjects = async () => {
             return projectsArray;
         }
     } catch (error) {
-        console.log("here")
         console.log(error.message);
         return null
     }
@@ -62,7 +61,7 @@ const getAllOpenProjectsWithSource = async (source) => {
         var open_projects = await getAllOpenProjects()
         const data = open_projects.filter(project => project.getSource() == source)
         if (data.length == 0) {
-            return ['No records found'];
+            return null;
         } else {
             return data;
         }

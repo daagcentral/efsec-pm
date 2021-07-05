@@ -4,22 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "nodemon index.js",
+    "test": "nodemon functions/index.js",
     "start": "npm install && node index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "assert": "^2.0.0",
-    "body-parser": "^1.19.0",
-    "cors": "^2.8.5",
-    "dotenv": "^10.0.0",
-    "firebase": "^8.6.7",
-    "firebase-admin": "^9.9.0",
-    "node-fetch": "^2.6.1",
-    "node-telegram-bot-api": "^0.53.0",
-    "url-polyfill": "^1.1.12",
-    "uuid": "^8.3.2"
   }
 }

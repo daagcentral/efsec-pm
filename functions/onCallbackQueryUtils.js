@@ -13,8 +13,7 @@ const sendGoogleForm = function (bot, msg, form) {
 }
 
 const pickProjectHandler = async function (bot, msg, source) {
-    const text = '\nSelect one \n';
-    let opts;
+    let opts, text;
     const open_projects = await getAllOpenProjectsWithSource(source)
     if (open_projects) {
         const open_projects_list = generateProjectsList(open_projects)
@@ -23,6 +22,9 @@ const pickProjectHandler = async function (bot, msg, source) {
                 inline_keyboard: open_projects_list
             })
         };
+        text = '\nSelect one \n';
+    } else {
+        text = `No open ${source}s`
     }
     // TODO else for error handdling
     bot.sendMessage(msg.chat.id, text, opts);
@@ -57,7 +59,6 @@ const sendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
     const project = await getProject(project_id)
     let text, options
-    console.log(project.getStatus())
     if (project.getStatus() == project_status.SALES_REVIEW_1) {
         text = "Reply to this text with attached file. \n\n NOTE: ATTACHMENT MUST BE EXCEL OR PDF FILE"
         options = {
@@ -71,7 +72,7 @@ const sendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
     const sent = await bot.sendMessage(msg.chat.id, text, options);
     bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
         try {
-            await updateProject(project_id, {'BoQ_revised': file.document.file_id})
+            await updateProject(project_id, { 'BoQ_revised': file.document.file_id })
             const text = await updateProject(project_id, { 'status': project_status.MANAGER_REVIEW })
             bot.sendMessage(sent.chat.id, text + '. Waiting for manager\'s review')
         } catch (error) {
@@ -116,10 +117,9 @@ const downloadBoMFromRegexHandler = async (bot, msg, regex) => {
         const project_id = regex[1]
         const project = await getProject(project_id)
         const BoM_file_id = project.getBoM()
-        const channel_msg = await sales_bot.sendDocument(process.env.EFSEC_ADMIN_CHAT_ID, BoM_file_id)
+        const channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, BoM_file_id)
         await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
-        await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id + 1)
     } catch (error) {
         console.log(error.message)
     }
@@ -131,10 +131,9 @@ const downloadBoQFromRegexHandler = async (bot, msg, regex) => {
         const project_id = regex[1]
         const project = await getProject(project_id)
         const BoM_file_id = project.getBoQ()
-        const channel_msg = await procurement_bot.sendDocument(process.env.EFSEC_ADMIN_CHAT_ID, BoM_file_id)
+        const channel_msg = await procurement_bot.sendDocument(env_config.service.efsec_admin_chat_id, BoM_file_id)
         await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
-        await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id + 1)
     } catch (error) {
         console.log(error.message)
     }
@@ -159,7 +158,7 @@ const uploadBoQFromRegexHandler = async (bot, msg, regex) => {
     const sent = await bot.sendMessage(msg.chat.id, text, options);
     bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
         try {
-            await updateProject(project_id, { 'BoQ': file.document.file_id})
+            await updateProject(project_id, { 'BoQ': file.document.file_id })
             const text = await updateProject(project_id, { 'status': project_status.SALES_REVIEW_1 })
             // TODO notify sales 
             bot.sendMessage(sent.chat.id, text + '. Waiting review from sales dept.')
@@ -384,7 +383,7 @@ const priceForClientsHandler = async (bot, msg) => {
     open_projects_with_revised_BoQ
         .forEach(async (project) => {
             const revised_BoQ_file_id = project.getRevisedBoQ()
-            const channel_msg = await sales_bot.sendDocument(process.env.EFSEC_ADMIN_CHAT_ID, revised_BoQ_file_id)
+            const channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, revised_BoQ_file_id)
             await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
             await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
         });
@@ -440,13 +439,13 @@ async function callbackQueryDistributer(bot, msg, action) {
         // regex not matched aka no external data passed
         switch (action) {
             case 'add_items_sale':
-                sendGoogleForm(bot, msg, process.env.SALES_ITEMS_FORM_LINK)
+                sendGoogleForm(bot, msg, env_config.service.sales_item_form_link)
                 break
             case 'add_bid':
-                sendGoogleForm(bot, msg, process.env.SALES_BID_FORM_LINK)
+                sendGoogleForm(bot, msg, env_config.service.sales_bid_form_link)
                 break
             case 'add_project':
-                sendGoogleForm(bot, msg, process.env.SALES_PROJECT_FORM_LINK)
+                sendGoogleForm(bot, msg, env_config.service.sales_project_forms_link)
                 break
             case 'pick_project':
                 await pickProjectHandler(bot, msg, project_source.PROJECT)
@@ -458,8 +457,8 @@ async function callbackQueryDistributer(bot, msg, action) {
                 await pickProjectHandler(bot, msg, project_source.BID)
                 break
             case 'send_bom':
-                    await sendBoMsHandler(bot, msg)
-                    break
+                await sendBoMsHandler(bot, msg)
+                break
             case 'view_boms':
                 await viewBoMsHandler(bot, msg)
                 break
