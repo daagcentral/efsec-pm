@@ -1,6 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 
-const opt = { polling: true }
+const opt = { polling: false }
 
 var sales_bot = new TelegramBot(env_config.service.sales_bot_token, opt)
 var procurement_bot = new TelegramBot(env_config.service.procurement_bot_token, opt)

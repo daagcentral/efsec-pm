@@ -10,7 +10,7 @@ const addProject = async (data) => {
         await firestore.collection('projects').doc().set(data);
         return 'Record saved successfuly';
     } catch (error) {
-        console.log(error.message)
+        functions.logger.warn("error\n"+error)
         return 'Failed. Try again.'
     }
 }
@@ -21,7 +21,6 @@ const getAllProjects = async () => {
         const data = await projects.get();
         const projectsArray = [];
         if (data.empty) {
-            console.log('No project records found')
             return null;
         } else {
             data.forEach(doc => {
@@ -31,7 +30,7 @@ const getAllProjects = async () => {
             return projectsArray;
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error\n"+error);
         return null
     }
 }
@@ -51,7 +50,7 @@ const getAllOpenProjects = async () => {
             return projectsArray;
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error\n"+error);
         return null
     }
 }
@@ -66,7 +65,7 @@ const getAllOpenProjectsWithSource = async (source) => {
             return data;
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error\n"+error);
         return null
     }
 }
@@ -81,7 +80,7 @@ const getAllOpenProjectsWithBoM = async () => {
             return data;
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error\n"+error);
         return null
     }
 }
@@ -96,7 +95,7 @@ const getAllOpenProjectsWithBoQ = async () => {
             return data;
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error\n"+error);
         return null
     }
 }
@@ -114,7 +113,7 @@ const getAllOpenProjectsWithRevisedBoQ = async () => {
             return data;
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error\n"+error);
         return null
     }
 }
@@ -129,7 +128,7 @@ const getProject = async (id) => {
             return createProjectObject(data);
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error\n"+error);
         return null
     }
 }
@@ -140,7 +139,7 @@ const updateProject = async (id, data) => {
         await project.update(data);
         return 'Record updated successfuly';
     } catch (error) {
-        console.log(error.message)
+        functions.logger.warn("error\n"+error)
         return 'Failed. Try again.'
     }
 }
@@ -150,7 +149,7 @@ const deleteProject = async (id) => {
         await firestore.collection('projects').doc(id).delete();
         return 'Record deleted successfuly';
     } catch (error) {
-        console.log(error.message)
+        functions.logger.warn("error\n"+error)
         return 'Failed. Try again.'
     }
 }

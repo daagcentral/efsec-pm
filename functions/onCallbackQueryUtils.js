@@ -49,7 +49,7 @@ const projectPickedHandler = async (bot, msg, regex) => {
         };
         bot.sendMessage(msg.chat.id, project_name, options);
     } catch (error) {
-        console.log(error.message)
+        functions.logger.warn("error\n"+error)
         bot.sendMessage(msg.chat.id, 'Failed to get info on project. Make sure the id is correct')
     }
     return
@@ -76,7 +76,7 @@ const sendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
             const text = await updateProject(project_id, { 'status': project_status.MANAGER_REVIEW })
             bot.sendMessage(sent.chat.id, text + '. Waiting for manager\'s review')
         } catch (error) {
-            console.log(error.message)
+            functions.logger.warn("error\n"+error)
             bot.sendMessage(sent.chat.id, 'Failed. Try again')
         }
     })
@@ -105,7 +105,7 @@ const uploadBoMFromRegexHandler = async (bot, msg, regex) => {
             const text = await updateProject(project_id, { 'BoM': file.document.file_id, 'status': project_status.PROCUREMENT_REVIEW })
             bot.sendMessage(sent.chat.id, text)
         } catch (error) {
-            console.log(error.message)
+            functions.logger.warn("error\n"+error)
             bot.sendMessage(sent.chat.id, 'Failed. Try again')
         }
     })
@@ -121,7 +121,7 @@ const downloadBoMFromRegexHandler = async (bot, msg, regex) => {
         await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
     } catch (error) {
-        console.log(error.message)
+        functions.logger.warn("error\n"+error)
     }
     return
 }
@@ -135,7 +135,7 @@ const downloadBoQFromRegexHandler = async (bot, msg, regex) => {
         await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
     } catch (error) {
-        console.log(error.message)
+        functions.logger.warn("error\n"+error)
     }
     return
 }
@@ -163,7 +163,7 @@ const uploadBoQFromRegexHandler = async (bot, msg, regex) => {
             // TODO notify sales 
             bot.sendMessage(sent.chat.id, text + '. Waiting review from sales dept.')
         } catch (error) {
-            console.log(error.message)
+            functions.logger.warn("error\n"+error)
             bot.sendMessage(sent.chat.id, 'Failed. Try again')
         }
     })

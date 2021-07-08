@@ -17,7 +17,7 @@ const addEmployee = async (id, data) => {
             // TODO notify admin for approval
             return 'Record saved successfuly. Waiting for approval from admin';
         } catch (error) {
-            console.log(error.message)
+            functions.logger.warn("error/n"+error)
             return 'Failed. Try again.'
         }
     } else {
@@ -38,7 +38,7 @@ const getAllEmployees = async () => {
         const data = await employees.get();
         const employeesArray = [];
         if (data.empty) {
-            console.log('No employee record found')
+            functions.logger.log('No employee record found')
             return null
         } else {
             data.forEach(doc => {
@@ -48,7 +48,7 @@ const getAllEmployees = async () => {
             return employeesArray;
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error/n"+error);
         return null
     }
 }
@@ -59,7 +59,7 @@ const getEmployeesWithStatus = async (status) => {
         const data = await employees.where('status', '==', status).get();
         const employeesArray = [];
         if (data.empty) {
-            console.log('No employee record found')
+            functions.logger.log('No employee record found')
             return null
         } else {
             data.forEach(doc => {
@@ -69,7 +69,7 @@ const getEmployeesWithStatus = async (status) => {
             return employeesArray;
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error/n"+error);
         return null
     }
 }
@@ -80,14 +80,14 @@ const getEmployee = async (id) => {
         const employee = await firestore.collection('employees').doc(id);
         const data = await employee.get();
         if (!data.exists) {
-            console.log('No employee record found')
+            functions.logger.log('No employee record found')
             return null;
         } else {
             return createEmployeeObject(data)
             
         }
     } catch (error) {
-        console.log(error.message);
+        functions.logger.warn("error/n"+error);
         return null
     }
 }
@@ -99,7 +99,7 @@ const updateEmployee = async (id, data) => {
         await employee.update(data);
         return 'Employee record updated successfuly';
     } catch (error) {
-        console.log(error.message)
+        functions.logger.warn("error/n"+error)
         return 'Failed. Try again.'
     }
 }
@@ -112,7 +112,7 @@ const employeeLogout = async (id) => {
         })
         return 'Successfully logged out'
     } catch (error) {
-        console.log(error.message)
+        functions.logger.warn("error/n"+error)
         return 'Failed to log out. Try again'
     }
 }
@@ -160,7 +160,7 @@ const employeeLogin = async (id, password, accessTo) => {
                 remark: 'Successfully logged in.'
             }
         } catch (error) {
-            console.log(error.message)
+            functions.logger.warn("error/n"+error)
             return {
                 success: false,
                 remark: 'Failed to start session. Try again.'
@@ -174,7 +174,7 @@ const deleteEmployee = async (id) => {
         await firestore.collection('employees').doc(id).delete();
         return 'Record deleted successfuly';
     } catch (error) {
-        console.log(error.message)
+        functions.logger.warn("error/n"+error)
         return 'Failed. Try again.'
     }
 }

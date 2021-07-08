@@ -4,16 +4,14 @@ global.functions = require('firebase-functions')
 global.env_config = Object.keys(functions.config()).length ? functions.config() : require('./env.json')
 const levelCommands = require('./levelcommands')
 const { callbackQueryDistributer } = require('./onCallbackQueryUtils')
-const { addEmployee, employeeLogout, getAllEmployees, getEmployee, updateEmployee, deleteEmployee, employeeLogin } = require('./controllers/employeeController')
+const { addEmployee, employeeLogout, getEmployee, employeeLogin } = require('./controllers/employeeController')
 const { access_to } = require('./enums')
 
-exports.hi = functions.https.onRequest((req, res) => {
-    res.send("hi")
-});
+const { sales_bot } = require('./bots')
+const { procurement_bot } = require('./bots')
+
 
 // ########################### SALES BOT START ########################### //
-const { sales_bot } = require('./bots')
-sales_bot.on("polling_error", console.log);
 
 sales_bot.onText(/\/help/, async function (msg) {
     const text = 'Welcome to the EFSEC Sales tool. Below are the available commands.\n\
@@ -40,9 +38,7 @@ sales_bot.onText(/\/help/, async function (msg) {
     \n/viewpricesreadyforclient is used to view prices ready to be sent to client.\n\
     \n/addnewproject is used to add a new project.\n\
     \n/addnewbid is used to add a new bid.\n\
-    \n/addnewsale is used to add a new retail sale.\n\
-    \n/clear - is used to declutter 48 hours of operations\n'
-
+    \n/addnewsale is used to add a new retail sale.\n'
 
     sales_bot.sendMessage(msg.chat.id, text)
 })
@@ -163,7 +159,7 @@ sales_bot.onText(/\/pickaproject(.*)/, async function (msg, match) {
     if (project_id == '' || project_id === null) {
         await callbackQueryDistributer(sales_bot, msg, 'pick_project')
     } else {
-        console.log(project_id)
+        functions.logger.log("/pickaproject called with id ", project_id)
         // await callbackQueryDistributer(sales_bot, msg, `projectPicked@${project_id}@${project_id}`) TODO
     }
 })
@@ -173,7 +169,7 @@ sales_bot.onText(/\/pickabid(.*)/, async function (msg, match) {
     if (bid_id == '' || bid_id === null) {
         await callbackQueryDistributer(sales_bot, msg, 'pick_bid')
     } else {
-        console.log(bid_id)
+        functions.logger.log("/pickabid called with id ", bid_id)
         // await callbackQueryDistributer(sales_bot, msg, `bidPicked@${bid_id}@${bid_id}`) TODO
     }
 })
@@ -183,24 +179,24 @@ sales_bot.onText(/\/pickasale(.*)/, async function (msg, match) {
     if (sale_id == '' || sale_id === null) {
         await callbackQueryDistributer(sales_bot, msg, 'pick_sale')
     } else {
-        console.log(sale_id)
+        functions.logger.log("/pickasale called with id ", sale_id)
         // await callbackQueryDistributer(sales_bot, msg, `salePicked@${sale_id}@${sale_id}`) TODO
     }
 })
 
-sales_bot.onText(/\/clear/, async function (msg) {
-    const chat_id = msg.chat.id
-    const message_id = msg.message_id - 1
-    const iteratable = Array(message_id - 0 + 1).fill().map((_, idx) => 0 + idx) // TODO 0 should be last cleared
+// sales_bot.onText(/\/clear/, async function (msg) {
+//     const chat_id = msg.chat.id
+//     const message_id = msg.message_id - 1
+//     const iteratable = Array(message_id - 0 + 1).fill().map((_, idx) => 0 + idx) // TODO 0 should be last cleared
 
-    Promise.all(await iteratable.map(async (iter) => {
-        try {
-            await sales_bot.deleteMessage(chat_id, iter)
-        } catch (error) {
-            // do nothing
-        }
-    }))
-})
+//     Promise.all(await iteratable.map(async (iter) => {
+//         try {
+//             await sales_bot.deleteMessage(chat_id, iter)
+//         } catch (error) {
+//             // do nothing
+//         }
+//     }))
+// })
 
 sales_bot.on('callback_query', async function onCallbackQuery(callbackQuery) {
     const action = callbackQuery.data;
@@ -212,7 +208,6 @@ sales_bot.on('callback_query', async function onCallbackQuery(callbackQuery) {
 
 
 // ######################## PROCUREMENT BOT END ######################## //
-const { procurement_bot } = require('./bots')
 
 procurement_bot.onText(/\/help/, async function (msg) {
     const text = 'Welcome to the EFSEC Procurement tool.\n\
@@ -225,9 +220,7 @@ procurement_bot.onText(/\/help/, async function (msg) {
     \nExample. /signup Password00!\n\
     \n/logout - is used to logout \n\
     \n/viewBoMs - is used to view open Bill of Materials\n\
-    \n/sendprices - is used to upload prices for a BoM\n\
-    \n/clear - is used to declutter 48 hours of operations\n\
-    '
+    \n/sendprices - is used to upload prices for a BoM\n'
     procurement_bot.sendMessage(msg.chat.id, text)
 })
 
@@ -321,19 +314,19 @@ procurement_bot.onText(/\/sendprices/, async function (msg) {
     await callbackQueryDistributer(procurement_bot, msg, 'send_prices')
 })
 
-procurement_bot.onText(/\/clear/, async function (msg) {
-    const chat_id = msg.chat.id
-    const message_id = msg.message_id
-    const iteratable = Array(message_id - 0 + 1).fill().map((_, idx) => 0 + idx) // TODO 0 should be last cleared
-    await Promise.all(iteratable.map(async (iter) => {
-        try {
-            await procurement_bot.deleteMessage(chat_id, iter)
-        } catch (error) {
-            //do nothing
-        }
+// procurement_bot.onText(/\/clear/, async function (msg) {
+//     const chat_id = msg.chat.id
+//     const message_id = msg.message_id
+//     const iteratable = Array(message_id - 0 + 1).fill().map((_, idx) => 0 + idx) // TODO 0 should be last cleared
+//     await Promise.all(iteratable.map(async (iter) => {
+//         try {
+//             await procurement_bot.deleteMessage(chat_id, iter)
+//         } catch (error) {
+//             //do nothing
+//         }
 
-    }))
-})
+//     }))
+// })
 
 procurement_bot.on('callback_query', async function onCallbackQuery(callbackQuery) {
     const action = callbackQuery.data;
@@ -341,3 +334,38 @@ procurement_bot.on('callback_query', async function onCallbackQuery(callbackQuer
     await callbackQueryDistributer(procurement_bot, msg, action)
 });
 
+
+
+
+exports.webhookSales = functions.region('europe-west1').https.onRequest( async (req, res) => {
+    // const callbackQuery = req.body.callback_query;
+    // const message = req.body.message;
+    // if (callbackQuery) {
+    //     const action = callbackQuery.data;
+    //     const msg = callbackQuery.message;
+    //     functions.logger.log('Incoming callback', message)
+    //     await callbackQueryDistributer(sales_bot, msg, action)
+    // } else if (message){
+
+    //     functions.logger.log('Incoming message', message)
+    // }
+
+    sales_bot.processUpdate(req.body)
+    return res.sendStatus(200)
+})
+
+exports.webhookProcurement = functions.region('europe-west1').https.onRequest(async (req, res) => {
+    // const callbackQuery = req.body.callback_query;
+    // const message = req.body.message;
+    // if (callbackQuery) {
+    //     const action = callbackQuery.data;
+    //     const msg = callbackQuery.message;
+    //     functions.logger.log('Incoming callback', message)
+    //     await callbackQueryDistributer(procurement_bot, msg, action)
+    // } else if (message){
+
+    //     functions.logger.log('Incoming message', message)
+    // }
+    procurement_bot.processUpdate(req.body)
+    return res.sendStatus(200)
+})
