@@ -1,8 +1,8 @@
-const admin = require('../db');
+const { createProjectObject } = require('./utils/projectUtils')
 const { project_status } = require('../enums');
+const admin = require('../db');
 const firestore = admin.firestore()
 
-const { createProjectObject } = require('./utils/projectUtils')
 
 
 const addProject = async (data) => {

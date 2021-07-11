@@ -5,10 +5,10 @@ const { respace } = require('./controllers/utils/modelUtils')
 const { project_source, project_status } = require('./enums')
 const { sales_bot, procurement_bot } = require('./bots')
 
-const sendGoogleForm = function (bot, msg, form) {
+const sendGoogleForm = async function (bot, msg, form) {
     const text =
         `Step 1: Copy your ID link:\nwww.${msg.chat.id}.com\n\nStep 2: Add the new project here:\n${form}` // google form URL
-    bot.sendMessage(msg.chat.id, text);
+    await bot.sendMessage(msg.chat.id, text);
     return
 }
 
@@ -26,14 +26,13 @@ const pickProjectHandler = async function (bot, msg, source) {
     } else {
         text = `No open ${source}s`
     }
-    // TODO else for error handdling
-    bot.sendMessage(msg.chat.id, text, opts);
+    await bot.sendMessage(msg.chat.id, text, opts);
     return
 }
 
 const leaveHandler = async (bot, msg) => {
     const text = await employeeLogout(msg.chat.id)
-    bot.sendMessage(msg.chat.id, text)
+    await bot.sendMessage(msg.chat.id, text)
     return
 }
 
@@ -47,10 +46,10 @@ const projectPickedHandler = async (bot, msg, regex) => {
                 inline_keyboard: menu
             }),
         };
-        bot.sendMessage(msg.chat.id, project_name, options);
+        await bot.sendMessage(msg.chat.id, project_name, options);
     } catch (error) {
-        functions.logger.warn("error\n"+error)
-        bot.sendMessage(msg.chat.id, 'Failed to get info on project. Make sure the id is correct')
+        functions.logger.warn("error\n" + error)
+        await bot.sendMessage(msg.chat.id, 'Failed to get info on project. Make sure the id is correct')
     }
     return
 }
@@ -60,7 +59,7 @@ const sendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
     const project = await getProject(project_id)
     let text, options
     if (project.getStatus() == project_status.SALES_REVIEW_1) {
-        text = "Reply to this text with attached file. \n\n NOTE: ATTACHMENT MUST BE EXCEL OR PDF FILE"
+        text = `Reply to this text with attached file (note: must be pdf or excel). Doing so will notify management.\nprojectId: ${project_id}`
         options = {
             reply_markup: JSON.stringify({
                 force_reply: true,
@@ -69,18 +68,8 @@ const sendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
     } else {
         text = 'Prices already sent for review'
     }
-    const sent = await bot.sendMessage(msg.chat.id, text, options);
-    bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
-        try {
-            await updateProject(project_id, { 'BoQ_revised': file.document.file_id })
-            const text = await updateProject(project_id, { 'status': project_status.MANAGER_REVIEW })
-            bot.sendMessage(sent.chat.id, text + '. Waiting for manager\'s review')
-        } catch (error) {
-            functions.logger.warn("error\n"+error)
-            bot.sendMessage(sent.chat.id, 'Failed. Try again')
-        }
-    })
-
+    await bot.sendMessage(msg.chat.id, text, options);
+    return
 }
 
 
@@ -90,7 +79,7 @@ const uploadBoMFromRegexHandler = async (bot, msg, regex) => {
     const project = await getProject(project_id)
     let text, options
     if (project.getBoM() == '') {
-        text = "Reply to this text with attached file"
+        text = `Reply to this text with attached file (note: must be pdf or excel). Doing so will notify procurement department.\nprojectId: ${project_id}`
         options = {
             reply_markup: JSON.stringify({
                 force_reply: true,
@@ -99,16 +88,7 @@ const uploadBoMFromRegexHandler = async (bot, msg, regex) => {
     } else {
         text = 'Bill of Materials already uploaded'
     }
-    const sent = await bot.sendMessage(msg.chat.id, text, options);
-    bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
-        try {
-            const text = await updateProject(project_id, { 'BoM': file.document.file_id, 'status': project_status.PROCUREMENT_REVIEW })
-            bot.sendMessage(sent.chat.id, text)
-        } catch (error) {
-            functions.logger.warn("error\n"+error)
-            bot.sendMessage(sent.chat.id, 'Failed. Try again')
-        }
-    })
+    await bot.sendMessage(msg.chat.id, text, options);
     return
 }
 
@@ -121,7 +101,7 @@ const downloadBoMFromRegexHandler = async (bot, msg, regex) => {
         await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
     } catch (error) {
-        functions.logger.warn("error\n"+error)
+        functions.logger.warn("error\n" + error)
     }
     return
 }
@@ -135,7 +115,7 @@ const downloadBoQFromRegexHandler = async (bot, msg, regex) => {
         await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
     } catch (error) {
-        functions.logger.warn("error\n"+error)
+        functions.logger.warn("error\n" + error)
     }
     return
 }
@@ -146,7 +126,7 @@ const uploadBoQFromRegexHandler = async (bot, msg, regex) => {
     const project = await getProject(project_id)
     let text, options
     if (project.getBoQ() == '') {
-        text = "Reply to this text with attached file"
+        text = `Reply to this text with attached file (note: must be pdf or excel). Doing so will notify sales department.\nprojectId: ${project_id}`
         options = {
             reply_markup: JSON.stringify({
                 force_reply: true,
@@ -155,18 +135,7 @@ const uploadBoQFromRegexHandler = async (bot, msg, regex) => {
     } else {
         text = `Prices already uploaded for ${project.getProjectTitle()}`
     }
-    const sent = await bot.sendMessage(msg.chat.id, text, options);
-    bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (file) {
-        try {
-            await updateProject(project_id, { 'BoQ': file.document.file_id })
-            const text = await updateProject(project_id, { 'status': project_status.SALES_REVIEW_1 })
-            // TODO notify sales 
-            bot.sendMessage(sent.chat.id, text + '. Waiting review from sales dept.')
-        } catch (error) {
-            functions.logger.warn("error\n"+error)
-            bot.sendMessage(sent.chat.id, 'Failed. Try again')
-        }
-    })
+    await bot.sendMessage(msg.chat.id, text, options);
     return
 }
 
@@ -180,7 +149,7 @@ const changeProjectStatusHandler = async (bot, msg, regex) => {
             inline_keyboard: menu
         }),
     }
-    bot.sendMessage(msg.chat.id, text, options);
+    await bot.sendMessage(msg.chat.id, text, options);
     return
 }
 
@@ -188,7 +157,7 @@ const statusPickedHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
     const new_status = regex[2]
     const text = await updateProject(project_id, { 'status': new_status })
-    bot.sendMessage(msg.chat.id, text);
+    await bot.sendMessage(msg.chat.id, text);
     return
 }
 
@@ -196,7 +165,7 @@ const paymentModePickedHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
     const new_mode = regex[2]
     const text = await updateProject(project_id, { 'paymentMode': new_mode })
-    bot.sendMessage(msg.chat.id, text);
+    await bot.sendMessage(msg.chat.id, text);
     return
 }
 
@@ -205,19 +174,15 @@ const addOrUpdateContractAmountHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
     const project = await getProject(project_id)
     const current_ammount = project.getContractAmount()
-    const text = `Current contract amount for ${respace(project.getProjectTitle())} is \
-    ${current_ammount === '' ? 'not added' : current_ammount} Reply to this message with new amount. \n\nListening...`
+    var text = `Current contract amount for ${respace(project.getProjectTitle())} is ${current_ammount === '' ? 'not added' : current_ammount}`
+    await bot.sendMessage(msg.chat.id, text)
+    text = `Reply to this message with new amount.\nprojectId: ${project_id}`
     const options = {
         reply_markup: JSON.stringify({
             force_reply: true
         })
     };
-    bot.sendMessage(msg.chat.id, text, options).then(async function (sent) {
-        bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (newContractAmount) {
-            const text = await updateProject(project_id, { 'contractAmount': newContractAmount.text })
-            bot.sendMessage(sent.chat.id, text)
-        })
-    })
+    await bot.sendMessage(msg.chat.id, text, options)
     return
 }
 
@@ -226,20 +191,18 @@ const addOrUpdateDeliverByHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
     const project = await getProject(project_id)
     const current_date = project.getDeliverBy()
-    const text = `Current delivery date for ${respace(project.getProjectTitle())} is ${current_date === ''
+    var text = `Current delivery date for ${respace(project.getProjectTitle())} is ${current_date === ''
         ? 'not added'
-        : current_date}. Reply to this message with new date (DD-MM-YYYY).\n\nListening...`
+        : current_date}.`
+
+    await bot.sendMessage(msg.chat.id, text)
+    text = `Reply to this message with new deliver date (DD-MM-YYYY).\nprojectId: ${project_id}`
     const options = {
         reply_markup: JSON.stringify({
             force_reply: true
         })
     };
-    bot.sendMessage(msg.chat.id, text, options).then(async function (sent) {
-        bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (newDate) {
-            const text = await updateProject(project_id, { 'deliverBy': newDate.text })
-            bot.sendMessage(sent.chat.id, text)
-        })
-    })
+    await bot.sendMessage(msg.chat.id, text, options)
     return
 }
 
@@ -248,20 +211,17 @@ const addOrUpdateExpectPaymentDateHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
     const project = await getProject(project_id)
     const current_date = project.getExpectPaymentBy()
-    const text = `Current expected payment date for ${respace(project.getProjectTitle())} is ${current_date === ''
+    var text = `Current expected payment date for ${respace(project.getProjectTitle())} is ${current_date === ''
         ? 'not added'
-        : current_date}. Reply to this message with new date (DD-MM-YYYY).\n\nListening...`
+        : current_date}.` 
+    bot.sendMessage(msg.chat.id, text)
+    text = `Reply to this message with new expected payment date (DD-MM-YYYY).\nprojectId: ${project_id}`
     const options = {
         reply_markup: JSON.stringify({
             force_reply: true
         })
     };
-    bot.sendMessage(msg.chat.id, text, options).then(async function (sent) {
-        bot.onReplyToMessage(sent.chat.id, sent.message_id, async function (newDate) {
-            const text = await updateProject(project_id, { 'expectPaymentBy': newDate.text })
-            bot.sendMessage(sent.chat.id, text)
-        })
-    })
+    await bot.sendMessage(msg.chat.id, text, options)
     return
 }
 
@@ -279,7 +239,7 @@ const addOrUpdatePaymentModeHandler = async (bot, msg, regex) => {
             inline_keyboard: menu
         }),
     }
-    bot.sendMessage(msg.chat.id, text, options);
+    await bot.sendMessage(msg.chat.id, text, options);
     return
 }
 
@@ -294,9 +254,9 @@ const viewBoMsHandler = async (bot, msg) => {
             })
         };
         const text = open_projects_with_BoM.length === 0 ? 'No BoMs ready for review' : "Download BoM for..."
-        bot.sendMessage(msg.chat.id, text, opts);
+        await bot.sendMessage(msg.chat.id, text, opts);
     } else {
-        bot.sendMessage(msg.chat.id, "There are no open projects with uploaded BoMs");
+        await bot.sendMessage(msg.chat.id, "There are no open projects with uploaded BoMs");
     }
     return
 }
@@ -312,9 +272,9 @@ const viewBoQsHandler = async (bot, msg) => {
             })
         };
         const text = open_projects_with_BoQ.length === 0 ? 'There are no BoQs ready for review.' : "Download BoQ for..."
-        bot.sendMessage(msg.chat.id, text, opts);
+        await bot.sendMessage(msg.chat.id, text, opts);
     } else {
-        bot.sendMessage(msg.chat.id, "There are no BoQs ready for review.");
+        await bot.sendMessage(msg.chat.id, "There are no BoQs ready for review.");
     }
     return
 }
@@ -330,9 +290,9 @@ const sendMarginsHandler = async (bot, msg) => {
             })
         };
         const text = open_projects_with_BoQ.length === 0 ? 'There are no BoQs awaiting review.' : "Get reviews for..."
-        bot.sendMessage(msg.chat.id, text, opts);
+        await bot.sendMessage(msg.chat.id, text, opts);
     } else {
-        bot.sendMessage(msg.chat.id, "There are no BoQs awaiting review.");
+        await bot.sendMessage(msg.chat.id, "There are no BoQs awaiting review.");
     }
     return
 }
@@ -348,9 +308,10 @@ const sendPricesHandler = async (bot, msg) => {
                 inline_keyboard: open_projects_list
             })
         };
-        bot.sendMessage(msg.chat.id, "Upload Prices for...", opts);
+        const text = open_projects_with_BoM.length === 0 ? "There are no open projects with uploaded BoMs" : "Upload Prices for..."
+        await bot.sendMessage(msg.chat.id, text, opts);
     } else {
-        bot.sendMessage(msg.chat.id, "There are no open projects with uploaded BoMs");
+        await bot.sendMessage(msg.chat.id, "There are no open projects with uploaded BoMs");
     }
     return
 }
@@ -366,9 +327,9 @@ const sendBoMsHandler = async (bot, msg) => {
             })
         };
         const text = open_projects_with_no_BoM.length === 0 ? 'There are no open projects without BoMs.' : "Upload BoM for..."
-        bot.sendMessage(msg.chat.id, text, opts);
+        await bot.sendMessage(msg.chat.id, text, opts);
     } else {
-        bot.sendMessage(msg.chat.id, 'There are no open projects without BoMs.');
+        await bot.sendMessage(msg.chat.id, 'There are no open projects without BoMs.');
     }
     return
 }
@@ -377,7 +338,7 @@ const priceForClientsHandler = async (bot, msg) => {
 
     var open_projects_with_revised_BoQ = await getAllOpenProjectsWithRevisedBoQ();
     if (open_projects_with_revised_BoQ === null) {
-        bot.sendMessage(msg.chat.id, "There are no prices ready for client.")
+        await bot.sendMessage(msg.chat.id, "There are no prices ready for client.")
         return
     }
     open_projects_with_revised_BoQ
@@ -439,13 +400,13 @@ async function callbackQueryDistributer(bot, msg, action) {
         // regex not matched aka no external data passed
         switch (action) {
             case 'add_items_sale':
-                sendGoogleForm(bot, msg, env_config.service.sales_item_form_link)
+                await sendGoogleForm(bot, msg, env_config.service.sales_item_form_link)
                 break
             case 'add_bid':
-                sendGoogleForm(bot, msg, env_config.service.sales_bid_form_link)
+                await sendGoogleForm(bot, msg, env_config.service.sales_bid_form_link)
                 break
             case 'add_project':
-                sendGoogleForm(bot, msg, env_config.service.sales_project_forms_link)
+                await sendGoogleForm(bot, msg, env_config.service.sales_project_forms_link)
                 break
             case 'pick_project':
                 await pickProjectHandler(bot, msg, project_source.PROJECT)
@@ -478,7 +439,7 @@ async function callbackQueryDistributer(bot, msg, action) {
                 leaveHandler(bot, msg)
                 break
             default:
-                bot.sendMessage(msg.chat.id, 'functionality not implemented');
+                await bot.sendMessage(msg.chat.id, 'functionality not implemented');
                 break
         }
     }

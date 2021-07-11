@@ -2,7 +2,7 @@ const project_status = {
     INIT: 'initialize',
     PENDING: 'pending',
     SIGNED: 'signed',
-    PROCUREMENT_REVIEW: 'under precurement review', // hide from viewers
+    PROCUREMENT_REVIEW: 'under procurement review', // hide from viewers
     SALES_REVIEW_1: 'under sales review', // when procurement returns // hide from viewers
     MANAGER_REVIEW: 'under manager review', // hide from viewers
     SALES_REVIEW_2: 'ready for client', // when managers return // hide from viewers
