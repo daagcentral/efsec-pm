@@ -1,5 +1,5 @@
-const { addProject, getAllProjects, getAllOpenProjects, getAllOpenProjectsWithSource, getAllOpenProjectsWithRevisedBoQ, getAllOpenProjectsWithBoQ, getAllOpenProjectsWithBoM, getProject, updateProject, deleteProject } = require('./controllers/projectController')
-const { addEmployee, getAllEmployees, employeeLogout, getEmployee, updateEmployee, deleteEmployee } = require('./controllers/employeeController')
+const { getAllOpenProjects, getAllOpenProjectsWithSource, getAllOpenProjectsWithStatus, getProject, updateProject } = require('./controllers/projectController')
+const { employeeLogout } = require('./controllers/employeeController')
 const { generateProjectsList, generateProjectStatusOptions, generateProjectsListforBoMUpload, generateProjectsListforBoQDownload, generateProjectsListforBoQReview, generateProjectsListforBoQUpload, generateProjectsListforBoMDownload, generatePaymentModeOptions, project_menu, projectPicked, } = require('./levelcommands')
 const { respace } = require('./controllers/utils/modelUtils')
 const { project_source, project_status } = require('./enums')
@@ -213,7 +213,7 @@ const addOrUpdateExpectPaymentDateHandler = async (bot, msg, regex) => {
     const current_date = project.getExpectPaymentBy()
     var text = `Current expected payment date for ${respace(project.getProjectTitle())} is ${current_date === ''
         ? 'not added'
-        : current_date}.` 
+        : current_date}.`
     bot.sendMessage(msg.chat.id, text)
     text = `Reply to this message with new expected payment date (DD-MM-YYYY).\nprojectId: ${project_id}`
     const options = {
@@ -244,9 +244,9 @@ const addOrUpdatePaymentModeHandler = async (bot, msg, regex) => {
 }
 
 const viewBoMsHandler = async (bot, msg) => {
-    var open_projects_with_BoM = await getAllOpenProjectsWithBoM()
+    var open_projects_with_BoM = await getAllOpenProjectsWithStatus(project_status.PROCUREMENT_REVIEW)
     if (open_projects_with_BoM) {
-        open_projects_with_BoM = open_projects_with_BoM.filter(project => project.getStatus() == project_status.PROCUREMENT_REVIEW)
+        // TODO error handling for when projects with status PROCUREMENT_REVIEW dont have BoMs
         const open_projects_list = generateProjectsListforBoMDownload(open_projects_with_BoM)
         const opts = {
             reply_markup: JSON.stringify({
@@ -262,9 +262,9 @@ const viewBoMsHandler = async (bot, msg) => {
 }
 
 const viewBoQsHandler = async (bot, msg) => {
-    var open_projects_with_BoQ = await getAllOpenProjectsWithBoQ()
+    var open_projects_with_BoQ = await getAllOpenProjectsWithStatus(project_status.SALES_REVIEW_1)
     if (open_projects_with_BoQ) {
-        open_projects_with_BoQ = open_projects_with_BoQ.filter(project => project.getStatus() == project_status.SALES_REVIEW_1)
+        // TODO error handling for when projects with status SALES_REVIEW_1 dont have BoQs
         const open_projects_list = generateProjectsListforBoQDownload(open_projects_with_BoQ)
         const opts = {
             reply_markup: JSON.stringify({
@@ -280,9 +280,9 @@ const viewBoQsHandler = async (bot, msg) => {
 }
 
 const sendMarginsHandler = async (bot, msg) => {
-    var open_projects_with_BoQ = await getAllOpenProjectsWithBoQ();
+    var open_projects_with_BoQ = await getAllOpenProjectsWithStatus(project_status.SALES_REVIEW_1);
     if (open_projects_with_BoQ) {
-        open_projects_with_BoQ = open_projects_with_BoQ.filter(project => project.getStatus() == project_status.SALES_REVIEW_1)
+        // TODO error handling for when projects with status SALES_REVIEW_1 dont have BoQs
         const open_projects_list = generateProjectsListforBoQReview(open_projects_with_BoQ)
         opts = {
             reply_markup: JSON.stringify({
@@ -299,9 +299,9 @@ const sendMarginsHandler = async (bot, msg) => {
 
 
 const sendPricesHandler = async (bot, msg) => {
-    var open_projects_with_BoM = await getAllOpenProjectsWithBoM()
+    var open_projects_with_BoM = await getAllOpenProjectsWithStatus(project_status.PROCUREMENT_REVIEW)
     if (open_projects_with_BoM) {
-        open_projects_with_BoM = open_projects_with_BoM.filter(project => project.getStatus() == project_status.PROCUREMENT_REVIEW);
+        // TODO error handling for when projects with status PROCUREMENT_REVIEW dont have BoMs
         const open_projects_list = generateProjectsListforBoQUpload(open_projects_with_BoM)
         opts = {
             reply_markup: JSON.stringify({
@@ -336,18 +336,19 @@ const sendBoMsHandler = async (bot, msg) => {
 
 const priceForClientsHandler = async (bot, msg) => {
 
-    var open_projects_with_revised_BoQ = await getAllOpenProjectsWithRevisedBoQ();
-    if (open_projects_with_revised_BoQ === null) {
+    var open_projects_with_revised_BoQ = await getAllOpenProjectsWithStatus(project_status.SALES_REVIEW_2);
+    if (open_projects_with_revised_BoQ) {
+        open_projects_with_revised_BoQ
+            .forEach(async (project) => {
+                const revised_BoQ_file_id = project.getRevisedBoQ()
+                const channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, revised_BoQ_file_id)
+                await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
+                await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
+            });
+        await bot.sendMessage(msg.chat.id, "Remember to change project status to pennding after sending PI to client.")
+    } else {
         await bot.sendMessage(msg.chat.id, "There are no prices ready for client.")
-        return
     }
-    open_projects_with_revised_BoQ
-        .forEach(async (project) => {
-            const revised_BoQ_file_id = project.getRevisedBoQ()
-            const channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, revised_BoQ_file_id)
-            await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
-            await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
-        });
     return
 }
 

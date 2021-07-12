@@ -1,5 +1,4 @@
 const { createProjectObject } = require('./utils/projectUtils')
-const { project_status } = require('../enums');
 const admin = require('../db');
 const firestore = admin.firestore()
 
@@ -10,7 +9,7 @@ const addProject = async (data) => {
         await firestore.collection('projects').doc().set(data);
         return 'Record saved successfuly';
     } catch (error) {
-        functions.logger.warn("error\n"+error)
+        functions.logger.warn("error\n" + error)
         return 'Failed. Try again.'
     }
 }
@@ -30,7 +29,7 @@ const getAllProjects = async () => {
             return projectsArray;
         }
     } catch (error) {
-        functions.logger.warn("error\n"+error);
+        functions.logger.warn("error\n" + error);
         return null
     }
 }
@@ -50,7 +49,29 @@ const getAllOpenProjects = async () => {
             return projectsArray;
         }
     } catch (error) {
-        functions.logger.warn("error\n"+error);
+        functions.logger.warn("error\n" + error);
+        return null
+    }
+}
+
+const getAllOpenProjectsWithStatus = async (status) => {
+    try {
+        const projectsArray = []
+        const data = await firestore.collection('projects')
+            .where('status', "==", status)
+            .get();
+        if (data.empty) {
+            return null;
+        } else {
+            data.forEach(doc => {
+                const project = createProjectObject(doc)
+                projectsArray.push(project);
+            });
+            return projectsArray;
+        }
+
+    } catch (error) {
+        functions.logger.warn("error\n" + error);
         return null
     }
 }
@@ -65,7 +86,7 @@ const getAllOpenProjectsWithSource = async (source) => {
             return data;
         }
     } catch (error) {
-        functions.logger.warn("error\n"+error);
+        functions.logger.warn("error\n" + error);
         return null
     }
 }
@@ -73,14 +94,16 @@ const getAllOpenProjectsWithSource = async (source) => {
 const getAllOpenProjectsWithBoM = async () => {
     try {
         var open_projects = await getAllOpenProjects()
-        const data = open_projects.filter(project => project.getBoM() != '' && project.getBoM() != null)
+        const data = open_projects.filter(project =>
+            project.getBoM() != '' &&
+            project.getBoM() != null)
         if (data.length == 0) {
             return null;
         } else {
             return data;
         }
     } catch (error) {
-        functions.logger.warn("error\n"+error);
+        functions.logger.warn("error\n" + error);
         return null
     }
 }
@@ -88,14 +111,16 @@ const getAllOpenProjectsWithBoM = async () => {
 const getAllOpenProjectsWithBoQ = async () => {
     try {
         var open_projects = await getAllOpenProjects()
-        const data = open_projects.filter(project => project.getBoQ() != '' && project.getBoQ() != null)
+        const data = open_projects.filter(project =>
+            project.getBoQ() != '' &&
+            project.getBoQ() != null)
         if (data.length == 0) {
             return null;
         } else {
             return data;
         }
     } catch (error) {
-        functions.logger.warn("error\n"+error);
+        functions.logger.warn("error\n" + error);
         return null
     }
 }
@@ -105,15 +130,14 @@ const getAllOpenProjectsWithRevisedBoQ = async () => {
         var open_projects = await getAllOpenProjects()
         const data = open_projects.filter(project =>
             project.getRevisedBoQ() != '' &&
-            project.getRevisedBoQ() != null &&
-            project.getStatus() == project_status.SALES_REVIEW_2)
+            project.getRevisedBoQ() != null)
         if (data.length == 0) {
             return null;
         } else {
             return data;
         }
     } catch (error) {
-        functions.logger.warn("error\n"+error);
+        functions.logger.warn("error\n" + error);
         return null
     }
 }
@@ -128,7 +152,7 @@ const getProject = async (id) => {
             return createProjectObject(data);
         }
     } catch (error) {
-        functions.logger.warn("error\n"+error);
+        functions.logger.warn("error\n" + error);
         return null
     }
 }
@@ -139,7 +163,7 @@ const updateProject = async (id, data) => {
         await project.update(data);
         return 'Record updated successfuly';
     } catch (error) {
-        functions.logger.warn("error\n"+error)
+        functions.logger.warn("error\n" + error)
         return 'Failed. Try again.'
     }
 }
@@ -149,7 +173,7 @@ const deleteProject = async (id) => {
         await firestore.collection('projects').doc(id).delete();
         return 'Record deleted successfuly';
     } catch (error) {
-        functions.logger.warn("error\n"+error)
+        functions.logger.warn("error\n" + error)
         return 'Failed. Try again.'
     }
 }
@@ -164,6 +188,7 @@ module.exports = {
     getAllOpenProjectsWithSource,
     getAllOpenProjectsWithBoM,
     getAllOpenProjectsWithBoQ,
+    getAllOpenProjectsWithStatus,
     updateProject,
     deleteProject,
 }

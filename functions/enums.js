@@ -1,11 +1,12 @@
 const project_status = {
     INIT: 'initialize',
+    SALES_REVIEW_1: 'under sales review', // when procurement returns // hide from viewers
+    PROCUREMENT_REVIEW: 'under procurement review', // hide from viewers
+    SALES_REVIEW_2: 'ready for client', // when managers return // hide from viewers
+    MANAGER_REVIEW: 'under manager review', // hide from viewers
     PENDING: 'pending',
     SIGNED: 'signed',
-    PROCUREMENT_REVIEW: 'under procurement review', // hide from viewers
-    SALES_REVIEW_1: 'under sales review', // when procurement returns // hide from viewers
-    MANAGER_REVIEW: 'under manager review', // hide from viewers
-    SALES_REVIEW_2: 'ready for client', // when managers return // hide from viewers
+    DROPPED: 'dropped',
     CLOSED: 'closed',
 }
 
@@ -45,4 +46,12 @@ const access_to = {
     ADMIN: 'admin'
 }
 
-module.exports = {project_status, employee_status, payment_mode, payment_status, file_purpose, project_source, access_to}
+module.exports = {
+    project_status,
+    employee_status,
+    payment_mode,
+    payment_status,
+    file_purpose,
+    project_source,
+    access_to
+}

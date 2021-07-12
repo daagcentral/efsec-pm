@@ -1,9 +1,8 @@
 const levelCommands = require('./levelcommands')
 const { callbackQueryDistributer } = require('./onCallbackQueryUtils')
 const { addEmployee, employeeLogout, getEmployee, employeeLogin } = require('./controllers/employeeController')
-const { access_to } = require('./enums')
-const { addProject, getAllProjects, getAllOpenProjects, getAllOpenProjectsWithSource, getAllOpenProjectsWithRevisedBoQ, getAllOpenProjectsWithBoQ, getAllOpenProjectsWithBoM, getProject, updateProject, deleteProject } = require('./controllers/projectController')
-const { project_source, project_status } = require('./enums')
+const { project_status, access_to } = require('./enums')
+const { updateProject } = require('./controllers/projectController')
 
 async function genLoginFromRegex(bot, msg, password) {
     const user_id = msg.chat.id
@@ -275,6 +274,7 @@ async function onReplyDistributer(bot, msg) {
             try {
                 await updateProject(project_id, { 'BoQ_revised': msg.document.file_id })
                 text = await updateProject(project_id, { 'status': project_status.MANAGER_REVIEW })
+                // TODO trello update card to MANAGER_REVIEW
                 await bot.sendMessage(msg.chat.id, text + '. Waiting for manager\'s review')
             } catch (error) {
                 functions.logger.warn('error\n' + error)
@@ -285,6 +285,7 @@ async function onReplyDistributer(bot, msg) {
             try {
                 await updateProject(project_id, { 'BoM': msg.document.file_id })
                 text = await updateProject(project_id, { 'status': project_status.PROCUREMENT_REVIEW })
+                // TODO trello update card to PROCUREMENT_REVIEW
                 await bot.sendMessage(msg.chat.id, text + '. Waiting for precurement to send prices.')
             } catch (error) {
                 functions.logger.warn('error\n' + error)
@@ -295,6 +296,7 @@ async function onReplyDistributer(bot, msg) {
             try {
                 await updateProject(project_id, { 'BoQ': msg.document.file_id })
                 text = await updateProject(project_id, { 'status': project_status.SALES_REVIEW_1 })
+                // TODO trello update card to SALES_REVIEW
                 await bot.sendMessage(msg.chat.id, text + '. Waiting review from sales dept.')
             } catch (error) {
                 functions.logger.warn('error\n' + error)
