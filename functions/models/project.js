@@ -1,7 +1,7 @@
 const enums = require('../enums')
 class Project {
     constructor(id, clientName, projectTitle, site, contractAmount,
-        paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, revisedBoQ, BoM, status, updates) {
+        paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, revisedBoQ, BoM, status, updates, trelloCardId) {
         this.id = id;
         this.clientName = clientName;
         this.projectTitle = projectTitle;
@@ -17,6 +17,7 @@ class Project {
         this.BoM = BoM;
         this.status = status; // enums.status.INIT ??
         this.updates = updates;
+        this.trelloCardId = trelloCardId;
     }
     getId() {
         return this.id
@@ -62,6 +63,9 @@ class Project {
     }
     getUpdates() {
         return this.updates
+    }
+    getTrelloCardId() {
+        return this.trelloCardId
     }
 
 }

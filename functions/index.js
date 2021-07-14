@@ -4,7 +4,7 @@ global.functions = require('firebase-functions')
 global.env_config = Object.keys(functions.config()).length ? functions.config() : require('./env.json')
 const { callbackQueryDistributer } = require('./onCallbackQueryUtils')
 const { onSalesMessageDistributer, onProcurementMessageDistributer, onReplyDistributer } = require('./onMessageHandlers')
-
+const { trelloActionDistributer } = require('./onTrelloAction')
 const { sales_bot, procurement_bot } = require('./bots');
 const { logger } = require('firebase-functions');
 
@@ -62,6 +62,6 @@ exports.webhookTrello = functions.region('europe-west1').https.onRequest(async (
         logger.warn('invalid trello webhook request')
         return res.sendStatus(500)
     }
-    logger.log(req.body.action)
+    await trelloActionDistributer(req.body.action)
     return res.sendStatus(200)
 })

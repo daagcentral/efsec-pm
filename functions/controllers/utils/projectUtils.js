@@ -15,7 +15,8 @@ const createProjectObject = (doc) => {
         doc.data().BoQ_revised,
         doc.data().BoM,
         doc.data().status,
-        doc.data().updates
+        doc.data().updates,
+        doc.data().trelloCardId
     );
 }
 

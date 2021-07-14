@@ -16,10 +16,10 @@ const addProject = async (data) => {
 
 const getAllProjects = async () => {
     try {
-        const projects = await firestore.collection('projects');
-        const data = await projects.get();
+        const data = await firestore.collection('projects').get();
         const projectsArray = [];
         if (data.empty) {
+            functions.logger.warn("No projects in database")
             return null;
         } else {
             data.forEach(doc => {
@@ -36,10 +36,12 @@ const getAllProjects = async () => {
 
 const getAllOpenProjects = async () => {
     try {
-        const projects = await firestore.collection('projects');
-        const data = await projects.where('status', '!=', 'closed').get();
+        const data = await firestore.collection('projects')
+            .where('status', '!=', 'closed')
+            .get();
         const projectsArray = [];
         if (data.empty) {
+            functions.logger.warn("No open projects in database")
             return null;
         } else {
             data.forEach(doc => {
@@ -61,6 +63,7 @@ const getAllOpenProjectsWithStatus = async (status) => {
             .where('status', "==", status)
             .get();
         if (data.empty) {
+            functions.logger.warn(`No projects with ${status}`)
             return null;
         } else {
             data.forEach(doc => {
@@ -81,6 +84,7 @@ const getAllOpenProjectsWithSource = async (source) => {
         var open_projects = await getAllOpenProjects()
         const data = open_projects.filter(project => project.getSource() == source)
         if (data.length == 0) {
+            functions.logger.warn(`No open projects with source ${source}`)
             return null;
         } else {
             return data;
@@ -98,6 +102,7 @@ const getAllOpenProjectsWithBoM = async () => {
             project.getBoM() != '' &&
             project.getBoM() != null)
         if (data.length == 0) {
+            functions.logger.warn("No open projects have BoMs")
             return null;
         } else {
             return data;
@@ -115,6 +120,7 @@ const getAllOpenProjectsWithBoQ = async () => {
             project.getBoQ() != '' &&
             project.getBoQ() != null)
         if (data.length == 0) {
+            functions.logger.warn("No open projects have BoQs")
             return null;
         } else {
             return data;
@@ -132,6 +138,7 @@ const getAllOpenProjectsWithRevisedBoQ = async () => {
             project.getRevisedBoQ() != '' &&
             project.getRevisedBoQ() != null)
         if (data.length == 0) {
+            functions.logger.warn("No open projects have revised BoQs")
             return null;
         } else {
             return data;
@@ -147,9 +154,32 @@ const getProject = async (id) => {
         const project = await firestore.collection('projects').doc(id);
         const data = await project.get();
         if (!data.exists) {
+            functions.logger.warn(`Project with id ${id} does not exist`)
             return null;
         } else {
             return createProjectObject(data);
+        }
+    } catch (error) {
+        functions.logger.warn("error\n" + error);
+        return null
+    }
+}
+
+const getProjectWithTrelloCardId = async (idCard) => {
+    try {
+        const data = await firestore.collection('projects')
+            .where('trelloCardId', '==', idCard)
+            .get();
+        const projectsArray = []    
+        if (data.empty) {
+            functions.logger.warn(`Project with trelloCardID ${idCard} doesnt exist`)
+            return null;
+        } else {
+            data.forEach(doc => {
+                const project = createProjectObject(doc)
+                projectsArray.push(project);
+            });
+            return projectsArray[0]
         }
     } catch (error) {
         functions.logger.warn("error\n" + error);
@@ -183,6 +213,7 @@ module.exports = {
     createProjectObject,
     getAllProjects,
     getProject,
+    getProjectWithTrelloCardId,
     getAllOpenProjects,
     getAllOpenProjectsWithRevisedBoQ,
     getAllOpenProjectsWithSource,
