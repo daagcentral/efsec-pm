@@ -1,110 +1,82 @@
 const admin = require('../db');
 const firestore = admin.firestore()
-const bucket = admin.storage().bucket()
 
-const { createEmployeeObject, hashPassword } = require('./utils/employeeUtils');
-const { project_status, employee_status, payment_mode } = require('../enums');
+const { createEmployeeObject, createEmployeeObjectIfData, hashPassword } = require('./utils/employeeUtils');
+const { employee_status } = require('../values/enums');
 
-const addEmployee = async (id, data) => {
+const genAddEmployee = async (id, data) => {
     id = `${id}`
     // check  if employee exists
-    const employee = await getEmployee(id)
+    const employee = await genEmployee(id)
     if (!employee) {
         data.accessTo = []
         data.password = hashPassword(data.password)
         try {
             await firestore.collection('employees').doc(id).set(data);
-            // TODO notify admin for approval
-            return 'Record saved successfuly. Waiting for approval from admin';
+            return 'Record saved successfuly. Waiting for approval from admin.';
         } catch (error) {
-            functions.logger.warn("error/n"+error)
+            functions.logger.warn("error/n" + error)
             return 'Failed. Try again.'
         }
     } else {
         const accessTo = employee.getAccessTo()
         if (accessTo.includes(data.accessTo[0])) {
-            return 'User already exists. Please login'
+            return 'User already exists. Please login.'
         } else {
-            // TODO notify admin for approval
-            return 'User exists. Waiting bot usage approval from admin';
+            return 'User exists. Waiting usage approval from admin.';
         }
     }
 }
 
-
-const getAllEmployees = async () => {
+const genAllEmployees = async () => {
     try {
-        const employees = await firestore.collection('employees');
-        const data = await employees.get();
-        const employeesArray = [];
-        if (data.empty) {
-            functions.logger.log('No employee record found')
-            return null
-        } else {
-            data.forEach(doc => {
-                const employee = createEmployeeObject(doc);
-                employeesArray.push(employee);
-            });
-            return employeesArray;
-        }
+        const data = await firestore.collection('employees').get();
+        return createEmployeeObjectIfData(data, 'No employee record found')
     } catch (error) {
-        functions.logger.warn("error/n"+error);
+        functions.logger.warn("error/n" + error);
         return null
     }
 }
 
-const getEmployeesWithStatus = async (status) => {
+const genEmployeesWithStatus = async (status) => {
     try {
-        const employees = await firestore.collection('employees');
-        const data = await employees.where('status', '==', status).get();
-        const employeesArray = [];
-        if (data.empty) {
-            functions.logger.log('No employee record found')
-            return null
-        } else {
-            data.forEach(doc => {
-                const employee = createEmployeeObject(doc);
-                employeesArray.push(employee);
-            });
-            return employeesArray;
-        }
+        const data = await firestore.collection('employees').where('status', '==', status).get();
+        return createEmployeeObjectIfData(data, 'No employee record found')
     } catch (error) {
-        functions.logger.warn("error/n"+error);
+        functions.logger.warn("error/n" + error);
         return null
     }
 }
 
-const getEmployee = async (id) => {
+const genEmployee = async (id) => {
     id = `${id}`
     try {
-        const employee = await firestore.collection('employees').doc(id);
-        const data = await employee.get();
+        const data = await firestore.collection('employees').doc(id).get();
         if (!data.exists) {
             functions.logger.log('No employee record found')
             return null;
         } else {
             return createEmployeeObject(data)
-            
         }
     } catch (error) {
-        functions.logger.warn("error/n"+error);
+        functions.logger.warn("error/n" + error);
         return null
     }
 }
 
-const updateEmployee = async (id, data) => {
+const genUpdateEmployee = async (id, data) => {
     id = `${id}`
     try {
         const employee = await firestore.collection('employees').doc(`${id}`);
         await employee.update(data);
         return 'Employee record updated successfuly';
     } catch (error) {
-        functions.logger.warn("error/n"+error)
+        functions.logger.warn("error/n" + error)
         return 'Failed. Try again.'
     }
 }
 
-const employeeLogout = async (id) => {
+const genEmployeeLogout = async (id) => {
     id = `${id}`
     try {
         await firestore.collection('employees').doc(id).update({
@@ -112,12 +84,12 @@ const employeeLogout = async (id) => {
         })
         return 'Successfully logged out'
     } catch (error) {
-        functions.logger.warn("error/n"+error)
+        functions.logger.warn("error/n" + error)
         return 'Failed to log out. Try again'
     }
 }
 
-const employeeLogin = async (id, password, accessTo) => {
+const genEmployeeLogin = async (id, password, accessTo) => {
     id = `${id}`
     var employee = await firestore.collection('employees').doc(id).get()
 
@@ -150,7 +122,6 @@ const employeeLogin = async (id, password, accessTo) => {
             }
         }
 
-
         try {
             await firestore.collection('employees').doc(id).update({
                 'session': 'live'
@@ -160,7 +131,7 @@ const employeeLogin = async (id, password, accessTo) => {
                 remark: 'Successfully logged in.'
             }
         } catch (error) {
-            functions.logger.warn("error/n"+error)
+            functions.logger.warn("error/n" + error)
             return {
                 success: false,
                 remark: 'Failed to start session. Try again.'
@@ -169,23 +140,23 @@ const employeeLogin = async (id, password, accessTo) => {
     }
 }
 
-const deleteEmployee = async (id) => {
+const genDeleteEmployee = async (id) => {
     try {
         await firestore.collection('employees').doc(id).delete();
         return 'Record deleted successfuly';
     } catch (error) {
-        functions.logger.warn("error/n"+error)
+        functions.logger.warn("error/n" + error)
         return 'Failed. Try again.'
     }
 }
 
 module.exports = {
-    addEmployee,
-    getAllEmployees,
-    getEmployee,
-    getEmployeesWithStatus,
-    updateEmployee,
-    deleteEmployee,
-    employeeLogin,
-    employeeLogout
+    genAddEmployee,
+    genAllEmployees,
+    genEmployee,
+    genEmployeesWithStatus,
+    genUpdateEmployee,
+    genDeleteEmployee,
+    genEmployeeLogin,
+    genEmployeeLogout
 }

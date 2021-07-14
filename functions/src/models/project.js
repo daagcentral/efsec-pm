@@ -1,4 +1,3 @@
-const enums = require('../enums')
 class Project {
     constructor(id, clientName, projectTitle, site, contractAmount,
         paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, revisedBoQ, BoM, status, updates, trelloCardId) {
@@ -15,10 +14,11 @@ class Project {
         this.BoQ = BoQ;
         this.revisedBoQ = revisedBoQ;
         this.BoM = BoM;
-        this.status = status; // enums.status.INIT ??
+        this.status = status;
         this.updates = updates;
         this.trelloCardId = trelloCardId;
     }
+
     getId() {
         return this.id
     }

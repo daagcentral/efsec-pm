@@ -1,10 +1,9 @@
-const { createProjectObject } = require('./utils/projectUtils')
 const admin = require('../db');
 const firestore = admin.firestore()
 
+const { createProjectObject, createProjectsObjectIfData } = require('./utils/projectUtils')
 
-
-const addProject = async (data) => {
+const genAddProject = async (data) => {
     try {
         await firestore.collection('projects').doc().set(data);
         return 'Record saved successfuly';
@@ -14,74 +13,45 @@ const addProject = async (data) => {
     }
 }
 
-const getAllProjects = async () => {
+const genAllProjects = async () => {
     try {
         const data = await firestore.collection('projects').get();
-        const projectsArray = [];
-        if (data.empty) {
-            functions.logger.warn("No projects in database")
-            return null;
-        } else {
-            data.forEach(doc => {
-                const project = createProjectObject(doc)
-                projectsArray.push(project);
-            });
-            return projectsArray;
-        }
+        return createProjectsObjectIfData(data)
     } catch (error) {
         functions.logger.warn("error\n" + error);
         return null
     }
 }
 
-const getAllOpenProjects = async () => {
+const genAllOpenProjects = async () => {
     try {
         const data = await firestore.collection('projects')
             .where('status', '!=', 'closed')
             .get();
-        const projectsArray = [];
-        if (data.empty) {
-            functions.logger.warn("No open projects in database")
-            return null;
-        } else {
-            data.forEach(doc => {
-                const project = createProjectObject(doc)
-                projectsArray.push(project);
-            });
-            return projectsArray;
-        }
+        const noDataWarning = "No open projects in database"
+        return createProjectsObjectIfData(data, noDataWarning)
     } catch (error) {
         functions.logger.warn("error\n" + error);
         return null
     }
 }
 
-const getAllOpenProjectsWithStatus = async (status) => {
+const genAllOpenProjectsWithStatus = async (status) => {
     try {
-        const projectsArray = []
         const data = await firestore.collection('projects')
             .where('status', "==", status)
             .get();
-        if (data.empty) {
-            functions.logger.warn(`No projects with ${status}`)
-            return null;
-        } else {
-            data.forEach(doc => {
-                const project = createProjectObject(doc)
-                projectsArray.push(project);
-            });
-            return projectsArray;
-        }
-
+        const noDataWarning = `No projects with ${status}`
+        return createProjectsObjectIfData(data, noDataWarning)
     } catch (error) {
         functions.logger.warn("error\n" + error);
         return null
     }
 }
 
-const getAllOpenProjectsWithSource = async (source) => {
+const genAllOpenProjectsWithSource = async (source) => {
     try {
-        var open_projects = await getAllOpenProjects()
+        var open_projects = await genAllOpenProjects()
         const data = open_projects.filter(project => project.getSource() == source)
         if (data.length == 0) {
             functions.logger.warn(`No open projects with source ${source}`)
@@ -95,9 +65,9 @@ const getAllOpenProjectsWithSource = async (source) => {
     }
 }
 
-const getAllOpenProjectsWithBoM = async () => {
+const genAllOpenProjectsWithBoM = async () => {
     try {
-        var open_projects = await getAllOpenProjects()
+        var open_projects = await genAllOpenProjects()
         const data = open_projects.filter(project =>
             project.getBoM() != '' &&
             project.getBoM() != null)
@@ -113,9 +83,9 @@ const getAllOpenProjectsWithBoM = async () => {
     }
 }
 
-const getAllOpenProjectsWithBoQ = async () => {
+const genAllOpenProjectsWithBoQ = async () => {
     try {
-        var open_projects = await getAllOpenProjects()
+        var open_projects = await genAllOpenProjects()
         const data = open_projects.filter(project =>
             project.getBoQ() != '' &&
             project.getBoQ() != null)
@@ -131,9 +101,9 @@ const getAllOpenProjectsWithBoQ = async () => {
     }
 }
 
-const getAllOpenProjectsWithRevisedBoQ = async () => {
+const genAllOpenProjectsWithRevisedBoQ = async () => {
     try {
-        var open_projects = await getAllOpenProjects()
+        var open_projects = await genAllOpenProjects()
         const data = open_projects.filter(project =>
             project.getRevisedBoQ() != '' &&
             project.getRevisedBoQ() != null)
@@ -149,7 +119,7 @@ const getAllOpenProjectsWithRevisedBoQ = async () => {
     }
 }
 
-const getProject = async (id) => {
+const genProjectWithId = async (id) => {
     try {
         const project = await firestore.collection('projects').doc(id);
         const data = await project.get();
@@ -165,32 +135,22 @@ const getProject = async (id) => {
     }
 }
 
-const getProjectWithTrelloCardId = async (idCard) => {
+const genProjectWithTrelloCardId = async (idCard) => {
     try {
         const data = await firestore.collection('projects')
             .where('trelloCardId', '==', idCard)
             .get();
-        const projectsArray = []    
-        if (data.empty) {
-            functions.logger.warn(`Project with trelloCardID ${idCard} doesnt exist`)
-            return null;
-        } else {
-            data.forEach(doc => {
-                const project = createProjectObject(doc)
-                projectsArray.push(project);
-            });
-            return projectsArray[0]
-        }
+        const noDataWarning = `Project with trelloCardID ${idCard} doesnt exist`
+        return createProjectsIfData(data, noDataWarning)[0] // get the first and only project with cardId
     } catch (error) {
         functions.logger.warn("error\n" + error);
         return null
     }
 }
 
-const updateProject = async (id, data) => {
+const genUpdateProject = async (id, data) => {
     try {
-        const project = await firestore.collection('projects').doc(id);
-        await project.update(data);
+        await firestore.collection('projects').doc(id).update(data);
         return 'Record updated successfuly';
     } catch (error) {
         functions.logger.warn("error\n" + error)
@@ -198,7 +158,7 @@ const updateProject = async (id, data) => {
     }
 }
 
-const deleteProject = async (id) => {
+const genDeleteProject = async (id) => {
     try {
         await firestore.collection('projects').doc(id).delete();
         return 'Record deleted successfuly';
@@ -209,17 +169,16 @@ const deleteProject = async (id) => {
 }
 
 module.exports = {
-    addProject,
-    createProjectObject,
-    getAllProjects,
-    getProject,
-    getProjectWithTrelloCardId,
-    getAllOpenProjects,
-    getAllOpenProjectsWithRevisedBoQ,
-    getAllOpenProjectsWithSource,
-    getAllOpenProjectsWithBoM,
-    getAllOpenProjectsWithBoQ,
-    getAllOpenProjectsWithStatus,
-    updateProject,
-    deleteProject,
+    genAddProject,
+    genAllProjects,
+    genProjectWithId,
+    genProjectWithTrelloCardId,
+    genAllOpenProjects,
+    genAllOpenProjectsWithRevisedBoQ,
+    genAllOpenProjectsWithSource,
+    genAllOpenProjectsWithBoM,
+    genAllOpenProjectsWithBoQ,
+    genAllOpenProjectsWithStatus,
+    genUpdateProject,
+    genDeleteProject,
 }

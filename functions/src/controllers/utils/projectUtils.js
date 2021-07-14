@@ -1,4 +1,5 @@
 const Project = require('../../models/project');
+
 const createProjectObject = (doc) => {
     return new Project(
         doc.id,
@@ -20,7 +21,21 @@ const createProjectObject = (doc) => {
     );
 }
 
+const createProjectsObjectIfData = (data, noDataWarning) => {
+    const projectsArray = [];
+    if (data.empty) {
+        functions.logger.warn(noDataWarning)
+        return null;
+    } else {
+        data.forEach(doc => {
+            const project = createProjectObject(doc)
+            projectsArray.push(project);
+        });
+        return projectsArray;
+    }
+}
 
 module.exports = {
-    createProjectObject
+    createProjectObject,
+    createProjectsObjectIfData
 }

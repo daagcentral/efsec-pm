@@ -1,5 +1,5 @@
-const { project_status, project_source, payment_mode } = require('./enums')
-const { getProject } = require('./controllers/projectController')
+const { project_status, project_source, payment_mode } = require('./values/enums')
+const { genProjectWithId } = require('./controllers/projectController')
 const { respace } = require('./controllers/utils/modelUtils')
 const main_menu = [
     [{ text: 'New Items Sale', callback_data: 'add_items_sale' }],
@@ -19,8 +19,8 @@ const main_menu_procurement = [
     [{ text: 'Leave', callback_data: 'leave' }],
 ]
 
-const projectPicked = async (id) => {
-    const project = await getProject(id)
+const genMenuForProjectPicked = async (id) => {
+    const project = await genProjectWithId(id)
     const source = project.getSource()
     var menu = [
         project.getBoM() != '' ?
@@ -138,6 +138,5 @@ module.exports = {
     generateProjectsList,
     generateProjectStatusOptions,
     generatePaymentModeOptions,
-    projectPicked
+    genMenuForProjectPicked
 }
-
