@@ -1,7 +1,7 @@
 const admin = require('../db');
 const firestore = admin.firestore()
 
-const { createEmployeeObject, createEmployeeObjectIfData, hashPassword } = require('./utils/employeeUtils');
+const { createEmployeeObject, createEmployeeObjectIfData, hashPassword, compare } = require('./utils/employeeUtils');
 const { employee_status } = require('../values/enums');
 
 const genAddEmployee = async (id, data) => {
@@ -10,12 +10,13 @@ const genAddEmployee = async (id, data) => {
     const employee = await genEmployee(id)
     if (!employee) {
         data.accessTo = []
-        data.password = hashPassword(data.password)
+        data.password = await hashPassword(data.password)
+        console.log("1", data.password)
         try {
             await firestore.collection('employees').doc(id).set(data);
             return 'Record saved successfuly. Waiting for approval from admin.';
         } catch (error) {
-            functions.logger.warn("error/n" + error)
+            functions.logger.warn(error)
             return 'Failed. Try again.'
         }
     } else {
@@ -33,7 +34,7 @@ const genAllEmployees = async () => {
         const data = await firestore.collection('employees').get();
         return createEmployeeObjectIfData(data, 'No employee record found')
     } catch (error) {
-        functions.logger.warn("error/n" + error);
+        functions.logger.warn(error);
         return null
     }
 }
@@ -43,7 +44,7 @@ const genEmployeesWithStatus = async (status) => {
         const data = await firestore.collection('employees').where('status', '==', status).get();
         return createEmployeeObjectIfData(data, 'No employee record found')
     } catch (error) {
-        functions.logger.warn("error/n" + error);
+        functions.logger.warn(error);
         return null
     }
 }
@@ -59,7 +60,7 @@ const genEmployee = async (id) => {
             return createEmployeeObject(data)
         }
     } catch (error) {
-        functions.logger.warn("error/n" + error);
+        functions.logger.warn(error);
         return null
     }
 }
@@ -71,7 +72,7 @@ const genUpdateEmployee = async (id, data) => {
         await employee.update(data);
         return 'Employee record updated successfuly';
     } catch (error) {
-        functions.logger.warn("error/n" + error)
+        functions.logger.warn(error)
         return 'Failed. Try again.'
     }
 }
@@ -84,7 +85,7 @@ const genEmployeeLogout = async (id) => {
         })
         return 'Successfully logged out'
     } catch (error) {
-        functions.logger.warn("error/n" + error)
+        functions.logger.warn(error)
         return 'Failed to log out. Try again'
     }
 }
@@ -114,8 +115,12 @@ const genEmployeeLogin = async (id, password, accessTo) => {
                 remark: 'Your account is still waiting for approval. Please wait or talk to admin.'
             }
         }
-
-        if (hashPassword(password) !== data.password) {
+        console.log(password)
+        const hash = await hashPassword(password)
+        console.log("2", hash)
+        console.log(data.password)
+        const correctPassword = await compare(data.password.hashedPassword, hash);
+        if (correctPassword) {
             return {
                 success: false,
                 remark: 'Wrong password. Try again.'
@@ -131,7 +136,7 @@ const genEmployeeLogin = async (id, password, accessTo) => {
                 remark: 'Successfully logged in.'
             }
         } catch (error) {
-            functions.logger.warn("error/n" + error)
+            functions.logger.warn(error)
             return {
                 success: false,
                 remark: 'Failed to start session. Try again.'
@@ -145,7 +150,7 @@ const genDeleteEmployee = async (id) => {
         await firestore.collection('employees').doc(id).delete();
         return 'Record deleted successfuly';
     } catch (error) {
-        functions.logger.warn("error/n" + error)
+        functions.logger.warn(error)
         return 'Failed. Try again.'
     }
 }

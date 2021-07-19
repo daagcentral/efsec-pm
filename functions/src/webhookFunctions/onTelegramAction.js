@@ -358,24 +358,29 @@ async function genLoginFromRegex(bot, msg, password) {
     if (password == '') {
         await bot.sendMessage(msg.chat.id, 'You forgot to add password. Use /login followed by your password. \nEx: /login Pass1234!');
     } else {
-        const { success, remark } = await genEmployeeLogin(user_id, password, access_to.SALES)
-        let options
-        if (success) {
-            options = {
-                reply_markup: JSON.stringify({
-                    inline_keyboard: levelCommands.main_menu
-                }),
-                chat_id: msg.chat.id,
-                message_id: msg.message_id,
-            };
+        try {
+            const { success, remark } = await genEmployeeLogin(user_id, password, access_to.SALES)
+            let options
+            if (success) {
+                options = {
+                    reply_markup: JSON.stringify({
+                        inline_keyboard: levelCommands.main_menu
+                    }),
+                    chat_id: msg.chat.id,
+                    message_id: msg.message_id,
+                };
+            }
+            await bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
+            await bot.sendMessage(msg.chat.id, remark, options)
+        } catch (error) {
+            functions.logger.warn("Password Error: ", error)
+            await bot.sendMessage(msg.chat.id, "Failed authenticating password. Try again.")
         }
-        await bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
-        await bot.sendMessage(msg.chat.id, remark, options)
     }
     return
 }
 
-async function genSignupFromRegex(bot, msg) {
+async function genSignupFromRegex(bot, msg, password) {
     if (password == '') {
         await bot.sendMessage(msg.chat.id, 'You forgot to add password. Use /signup followed by your password. \nEx: /signup Pass1234!');
     } else {
