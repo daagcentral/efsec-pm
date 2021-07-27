@@ -15,6 +15,7 @@ const createProjectObject = (doc) => {
         doc.data().BoQ,
         doc.data().BoQ_revised,
         doc.data().BoM,
+        doc.data().PI,
         doc.data().status,
         doc.data().updates,
         doc.data().trelloCardId
@@ -24,7 +25,7 @@ const createProjectObject = (doc) => {
 const createProjectsObjectIfData = (data, noDataWarning) => {
     const projectsArray = [];
     if (data.empty) {
-        functions.logger.warn(noDataWarning)
+        functions.logger.error(noDataWarning)
         return null;
     } else {
         data.forEach(doc => {

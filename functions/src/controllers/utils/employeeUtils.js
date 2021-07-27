@@ -17,7 +17,7 @@ const createEmployeeObject = (doc) => {
 const createEmployeeObjectIfData = (data, noDataWarning) => {
     const employeesArray = [];
     if (data.empty) {
-        functions.logger.warn(noDataWarning)
+        functions.logger.error(noDataWarning)
         return null;
     } else {
         data.forEach(doc => {

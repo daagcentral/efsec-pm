@@ -1,14 +1,13 @@
-const { project_status, project_source, payment_mode } = require('./values/enums')
+const { project_status, project_source, access_to, payment_mode } = require('./values/enums')
 const { genProjectWithId } = require('./controllers/projectController')
 const { respace } = require('./controllers/utils/modelUtils')
-const main_menu = [
-    [{ text: 'New Items Sale', callback_data: 'add_items_sale' }],
-    [{ text: 'New Bid', callback_data: 'add_bid' }],
-    [{ text: 'New Project', callback_data: 'add_project' }],
-    [{ text: 'Upload BoM', callback_data: 'send_bom' }],
-    [{ text: 'View Prices from Procurement', callback_data: 'view_boqs' }],
-    [{ text: 'Send Margins for Review', callback_data: 'send_margins_for_review' }],
-    [{ text: 'View Prices Ready for Client', callback_data: 'prices_ready_for_client' }],
+const main_menu_sales = [
+    [{ text: 'New Sales Activity', callback_data: 'add_project' }],
+    [{ text: 'Upload Client Document', callback_data: 'send_doc' }],
+    [{ text: 'View Client Document', callback_data: 'view_doc' }]
+    // [{ text: 'View Prices from Procurement', callback_data: 'view_boqs' }],
+    // [{ text: 'Send Margins for Review', callback_data: 'send_margins_for_review' }],
+    // [{ text: 'View Prices Ready for Client', callback_data: 'prices_ready_for_client' }],
     [{ text: 'Leave', callback_data: 'leave' }],
 ]
 
@@ -19,33 +18,34 @@ const main_menu_procurement = [
     [{ text: 'Leave', callback_data: 'leave' }],
 ]
 
-const genMenuForProjectPicked = async (id) => {
-    const project = await genProjectWithId(id)
-    const source = project.getSource()
+const main_menu_for = (access_requested) => {
+    switch (access_requested) {
+        case access_to.SALES:
+            return main_menu_sales
+        case access_to.PROCUREMENT:
+            return main_menu_procurement
+        default:
+            return null
+    }
+}
+
+const genMenuForProjectPicked = (id, source) => {
     var menu = [
-        project.getBoM() != '' ?
-            [{
-                text: 'Download BoM',
-                callback_data: `download_BoM@${id}`
-            }] : []
-        ,
-        project.getBoQ() != '' ?
-            [{
-                text: 'Download Prices',
-                callback_data: `download_BoQ@${id}`
-            }] : [{
-                text: 'Send Procurement Dept. reminder to get prices',
-                callback_data: `send_procurement_reminder@${id}`
-            }]
-        ,
-        [{
-            text: `Change Status`,
-            callback_data: `change_project_status@${id}`
-        }],
-        [{
-            text: 'Add Payment Mode',
-            callback_data: `add_payment_mode@${id}`
-        }],
+        [{ text: 'View Client Document', callback_data: 'view_doc' }],
+        // project.getBoQ() != '' ?
+        //     [{
+        //         text: 'Download Prices',
+        //         callback_data: `download_BoQ@${id}`
+        //     }] : [{
+        //         text: 'Send Procurement Dept. reminder to get prices',
+        //         callback_data: `send_procurement_reminder@${id}`
+        //     }]
+        // ,
+        [{ text: `Change Status`, callback_data: `change_project_status@${id}` }],
+        // [{
+        //     text: 'Add Payment Mode',
+        //     callback_data: `add_payment_mode@${id}`
+        // }],
     ]
 
     switch (source) {
@@ -83,14 +83,36 @@ const genMenuForProjectPicked = async (id) => {
     return menu
 }
 
+const document_types = (sendOrView) => {
+    return [
+        [{ text: 'BoM', callback_data: sendOrView + '_bom' }],
+        [{ text: 'Proforma', callback_data: sendOrView + '_pi' }]
+        [{ text: 'PO', callback_data: sendOrView + '_po' }],
+        [{ text: 'Contract', callback_data: sendOrView + '_contract' }],
+        [{ text: 'Bid', callback_data: sendOrView + '_bid' }],
+        [{ text: 'Other', callback_data: sendOrView + '_other' }]
+    ]
+}
+
+const document_types_with_id = (sendOrView, doc_type, id) => {
+    return [
+        [{ text: 'BoM', callback_data: sendOrView + '_bom' }],
+        [{ text: 'Proforma', callback_data: sendOrView + '_pi' }]
+        [{ text: 'PO', callback_data: sendOrView + '_po' }],
+        [{ text: 'Contract', callback_data: sendOrView + '_contract' }],
+        [{ text: 'Bid', callback_data: sendOrView + '_bid' }],
+        [{ text: 'Other', callback_data: sendOrView + '_other' }]
+    ]
+}
+
 const generateProjectStatusOptions = (id, currentOption) => {
     var status_list = Object.values(project_status).filter(
         status =>
-            status !== currentOption &&
-            status !== project_status.PROCUREMENT_REVIEW &&
-            status !== project_status.SALES_REVIEW_1 &&
-            status !== project_status.SALES_REVIEW_2 &&
-            status !== project_status.MANAGER_REVIEW
+            status !== currentOption
+        // status !== project_status.PROCUREMENT_REVIEW &&
+        // status !== project_status.SALES_REVIEW_1 &&
+        // status !== project_status.SALES_REVIEW_2 &&
+        // status !== project_status.MANAGER_REVIEW
     )
     return status_list.map(status => [{ text: status, callback_data: `statusPicked@${id}@${status}` }])
 }
@@ -104,9 +126,12 @@ const generatePaymentModeOptions = (id, currentOption) => {
 }
 
 const generateProjectsList = (projects) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `projectPicked@${project.getId()}@${project.getProjectTitle()}` }])
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `projectPicked@${project.getId()}` }])
 }
 
+const generateProjectListForSendOrViewDoc = (projects, view_or_send, doc_type) => {
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `${view_or_send}@${doc_type}@${project.getId()}` }])
+}
 const generateProjectsListforBoMDownload = (projects) => {
     return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `download_BoM@${project.getId()}` }])
 }
@@ -128,13 +153,14 @@ const generateProjectsListforBoQReview = (projects) => {
 }
 
 module.exports = {
-    main_menu,
-    main_menu_procurement,
+    main_menu_for,
+    document_types,
     generateProjectsListforBoMUpload,
     generateProjectsListforBoQDownload,
     generateProjectsListforBoQReview,
     generateProjectsListforBoMDownload,
     generateProjectsListforBoQUpload,
+    generateProjectListForSendOrViewDoc,
     generateProjectsList,
     generateProjectStatusOptions,
     generatePaymentModeOptions,

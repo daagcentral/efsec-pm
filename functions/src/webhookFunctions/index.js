@@ -1,8 +1,14 @@
 const { genCallbackQueryDistributer, genSalesMessageDistributer, genProcurementMessageDistributer, genReplyDistributer } = require('./onTelegramAction')
 const { genTrelloActionDistributer } = require('./onTrelloAction')
 const { sales_bot, procurement_bot } = require('../bots');
+const { genNewPINumber } = require('../controllers/counterController')
 
 const genSalesBotEntry = async (req, res) => {
+    if (!('body' in req)) {
+        functions.logger.error('invalid request')
+        return res.sendStatus(500)
+    }
+    
     const callbackQuery = req.body.callback_query;
     const message = req.body.message;
 
@@ -26,6 +32,11 @@ const genSalesBotEntry = async (req, res) => {
 
 const genProcurementBotEntry = async (req, res) => {
 
+    if (!('body' in req)) {
+        functions.logger.error('invalid request')
+        return res.sendStatus(500)
+    }
+
     const callbackQuery = req.body.callback_query;
     const message = req.body.message;
 
@@ -48,15 +59,33 @@ const genProcurementBotEntry = async (req, res) => {
 
 const genTrelloEntry = async (req, res) => {
     if (!('body' in req) || !('action' in req.body)) {
-        functions.logger.warn('invalid trello webhook request')
+        functions.logger.error('invalid trello webhook request')
         return res.sendStatus(500)
     }
     await genTrelloActionDistributer(req.body.action)
     return res.sendStatus(200)
 }
 
+const genProformaInvoiceNumber = async (req, res) => {
+    if (!('query' in req) || !('employee_id' in req.query)) {
+        functions.logger.error('invalid PI # request')
+        return res.sendStatus(500)
+    }
+    const { employee_id, client } = req.query
+    functions.logger.log(employee_id)
+    try {
+        const num = await genNewPINumber()
+        sales_bot.sendMessage(employee_id, `New PI # for ${client} is ${num}`)
+        return res.send(200, JSON.stringify({ "pi_num": num }))
+    } catch (error) {
+        functions.logger.error(error)
+        return res.sendStatus(500)
+    }
+}
+
 module.exports = {
     genSalesBotEntry,
     genProcurementBotEntry,
-    genTrelloEntry
+    genTrelloEntry,
+    genProformaInvoiceNumber
 }

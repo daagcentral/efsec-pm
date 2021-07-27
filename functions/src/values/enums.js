@@ -1,10 +1,10 @@
 const project_status = {
     INIT: 'initialize',
-    SALES_REVIEW_1: 'under sales review', // when procurement returns // hide from viewers
-    PROCUREMENT_REVIEW: 'under procurement review', // hide from viewers
-    SALES_REVIEW_2: 'ready for client', // when managers return // hide from viewers
-    MANAGER_REVIEW: 'under manager review', // hide from viewers
-    PENDING: 'pending',
+    // SALES_REVIEW_1: 'under sales review', // when procurement returns // hide from viewers
+    // PROCUREMENT_REVIEW: 'under procurement review', // hide from viewers
+    // SALES_REVIEW_2: 'ready for client', // when managers return // hide from viewers
+    // MANAGER_REVIEW: 'under manager review', // hide from viewers
+    // PENDING: 'pending',
     SIGNED: 'signed',
     DROPPED: 'dropped',
     CLOSED: 'closed',
@@ -30,7 +30,14 @@ const payment_status = {
 
 const file_purpose = {
     PROFILE_PIC: 'profile_picture',
-    BoM: 'bom'
+    BoM: 'BoM',
+    BoQ: 'BoQ',
+    BoQ_revised: 'BoQ_revised',
+    PI: 'proforma',
+    PO: 'purchase_order',
+    CONTRACT: 'contract',
+    BID: 'bid',
+    OTHER: 'other'
 }
 
 const project_source = {

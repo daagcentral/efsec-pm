@@ -1,6 +1,8 @@
+const { file_purpose } = require('../values/enums')
+
 class Project {
     constructor(id, clientName, projectTitle, site, contractAmount,
-        paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, revisedBoQ, BoM, status, updates, trelloCardId) {
+        paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, revisedBoQ, BoM, PI, status, updates, trelloCardId) {
         this.id = id;
         this.clientName = clientName;
         this.projectTitle = projectTitle;
@@ -14,6 +16,7 @@ class Project {
         this.BoQ = BoQ;
         this.revisedBoQ = revisedBoQ;
         this.BoM = BoM;
+        this.PI = PI;
         this.status = status;
         this.updates = updates;
         this.trelloCardId = trelloCardId;
@@ -49,6 +52,34 @@ class Project {
     getSource() {
         return this.source
     }
+    getDoc(doc_type) {
+        let file
+        switch (doc_type) {
+            case file_purpose.BoM:
+                file = this.getBoM()
+                break
+            case file_purpose.BoQ:
+                file = this.getBoQ()
+                break
+            case file_purpose.BoQ_revised:
+                file = this.getRevisedBoQ()
+                break
+            case file_purpose.PI:
+                file = this.getPI()
+                break
+            case file_purpose.PO:
+                break
+            case file_purpose.CONTRACT:
+                break
+            case file_purpose.BID:
+                break
+            case file_purpose.OTHER:
+                break
+            default:
+                break
+        }
+        return file
+    }
     getBoQ() {
         return this.BoQ
     }
@@ -57,6 +88,9 @@ class Project {
     }
     getBoM() {
         return this.BoM
+    }
+    getPI() {
+        return this.PI
     }
     getStatus() {
         return this.status

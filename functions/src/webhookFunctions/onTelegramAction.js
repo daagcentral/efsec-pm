@@ -1,12 +1,48 @@
 const levelCommands = require('../levelcommands')
-const { genAddEmployee, genEmployeeLogout, genEmployee, genEmployeeLogin } = require('../controllers/employeeController')
-const { genAllOpenProjects, genAllOpenProjectsWithSource, genAllOpenProjectsWithStatus, genProjectWithId, genUpdateProject } = require('../controllers/projectController')
-const { genTrelloMoveCardFromListtoList } = require('../controllers/trelloController')
-const { generateProjectsList, generateProjectStatusOptions, generateProjectsListforBoMUpload, generateProjectsListforBoQDownload, generateProjectsListforBoQReview, generateProjectsListforBoQUpload, generateProjectsListforBoMDownload, generatePaymentModeOptions, genMenuForProjectPicked } = require('../levelcommands')
-const { access_to, project_source, project_status } = require('../values/enums')
+const {
+    genAddEmployee,
+    genEmployeeLogout,
+    genEmployee,
+    genEmployeeLogin
+} = require('../controllers/employeeController')
+const {
+    genAllOpenProjects,
+    genAllOpenProjectsWithSource,
+    genAllOpenProjectsWithStatus,
+    genOpenProjectsWithFileType,
+    genProjectWithId,
+    genUpdateProject,
+    genAddFileToProject
+} = require('../controllers/projectController')
+const {
+    genTrelloMoveCardFromListtoList,
+    getTrelloAddUpdateToDescription
+} = require('../controllers/trelloController')
+const {
+    generateProjectsList,
+    generateProjectListForSendOrViewDoc,
+    document_types,
+    generateProjectStatusOptions,
+    generateProjectsListforBoMUpload,
+    generateProjectsListforBoQDownload,
+    generateProjectsListforBoQReview,
+    generateProjectsListforBoQUpload,
+    generateProjectsListforBoMDownload,
+    generatePaymentModeOptions,
+    genMenuForProjectPicked
+} = require('../levelcommands')
+const {
+    access_to,
+    project_source,
+    project_status,
+    file_purpose
+} = require('../values/enums')
 const { project_status_to_trello_idList_map } = require('../values/maps')
 const { respace } = require('../controllers/utils/modelUtils')
-const { sales_bot, procurement_bot } = require('../bots')
+const {
+    sales_bot,
+    procurement_bot
+} = require('../bots')
 
 const genSendGoogleForm = async (bot, msg, form) => {
     const text =
@@ -41,17 +77,17 @@ const genLeaveHandler = async (bot, msg) => {
 
 const genProjectPickedHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
-    const project_name = respace(regex[2])
     try {
-        const menu = await genMenuForProjectPicked(project_id)
+        const source = (await genProjectWithId(project_id)).getSource()
+        const menu = genMenuForProjectPicked(project_id, source)
         const options = {
             reply_markup: JSON.stringify({
                 inline_keyboard: menu
             }),
         };
-        await bot.sendMessage(msg.chat.id, project_name, options);
+        await bot.sendMessage(msg.chat.id, "Select one...", options);
     } catch (error) {
-        functions.logger.warn("error\n" + error)
+        functions.logger.error("error\n" + error)
         await bot.sendMessage(msg.chat.id, 'Failed to get info on project. Make sure the id is correct')
     }
     return
@@ -98,12 +134,13 @@ const genUploadBoMFromRegexHandler = async (bot, msg, regex) => {
 const genDownloadBoMFromRegexHandler = async (bot, msg, regex) => {
     try {
         const project_id = regex[1]
-        const BoM_file_id = (await genProjectWithId(project_id)).getBoM()
+        const BoMs = (await genProjectWithId(project_id)).getBoM()
+        const BoM_file_id = BoMs[BoMs.length - 1] // get latest BoM
         const channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, BoM_file_id)
         await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
     } catch (error) {
-        functions.logger.warn("error\n" + error)
+        functions.logger.error("error\n" + error)
     }
     return
 }
@@ -111,12 +148,13 @@ const genDownloadBoMFromRegexHandler = async (bot, msg, regex) => {
 const genDownloadBoQFromRegexHandler = async (bot, msg, regex) => {
     try {
         const project_id = regex[1]
-        const BoQ_file_id = (await genProjectWithId(project_id)).getBoQ()
+        const BoQs = (await genProjectWithId(project_id)).getBoQ()
+        const BoQ_file_id = BoQs[BoQs.length - 1] // get latest BoM
         const channel_msg = await procurement_bot.sendDocument(env_config.service.efsec_admin_chat_id, BoQ_file_id)
         await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
         await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
     } catch (error) {
-        functions.logger.warn("error\n" + error)
+        functions.logger.error("error\n" + error)
     }
     return
 }
@@ -243,6 +281,59 @@ const genAddOrUpdatePaymentModeHandler = async (bot, msg, regex) => {
     await bot.sendMessage(msg.chat.id, text, options);
     return
 }
+const viewDocFromRegexHandler = async (bot, msg, doc_type, id) => {
+    try {
+        const docs = (await genProjectWithId(id)).getDoc(doc_type)
+        const doc_file_id = docs[docs.length - 1] // get latest doc
+        const channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, doc_file_id)
+        await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
+        await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
+    } catch (error) {
+        functions.logger.error("error\n" + error)
+    }
+    return
+}
+
+const sendDocFromRegexHandler = async (bot, msg, doc_type, id) => {
+    let text, options
+
+    text = `Reply to this text with attached ${doc_type} (note: must be pdf or excel).\nprojectId: ${id}`
+    options = {
+        reply_markup: JSON.stringify({
+            force_reply: true,
+        })
+    };
+
+    await bot.sendMessage(msg.chat.id, text, options);
+    return
+}
+const genViewOrSendDoc = async (bot, msg, doc_type, view_or_send) => {
+    let open_projects, text, opts
+
+    switch (view_or_send) {
+        case 'view':
+            open_projects = await genOpenProjectsWithFileType(doc_type)
+            break
+        case 'send':
+            open_projects = await genAllOpenProjectsWithStatus(project_status.INIT)
+            break
+        default:
+            break
+    }
+    if (open_projects) {
+        const menu = generateProjectListForSendOrViewDoc(open_projects, doc_type, view_or_send)
+        opts = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: menu
+            })
+        };
+        text = "Select one..."
+    } else {
+        text = `There are no open projects to ${view_or_send} ${doc_type}`
+    }
+    await bot.sendMessage(msg.chat.id, text, opts);
+    return
+}
 
 const genViewBoMsHandler = async (bot, msg) => {
     var open_projects_with_BoM = await genAllOpenProjectsWithStatus(project_status.PROCUREMENT_REVIEW)
@@ -335,6 +426,20 @@ const genSendBoMsHandler = async (bot, msg) => {
     return
 }
 
+const genDocPicker = async (bot, msg, sendOrView) => {
+    try {
+        const opts = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: document_types(sendOrView)
+            })
+        };
+        await bot.sendMessage(msg.chat.id, 'Select type', opts);
+    } catch (error) {
+        await bot.sendMessage(msg.chat.id, 'Failed. Try again');
+    }
+    return
+}
+
 const genPriceForClientsHandler = async (bot, msg) => {
 
     var open_projects_with_revised_BoQ = await genAllOpenProjectsWithStatus(project_status.SALES_REVIEW_2);
@@ -373,7 +478,7 @@ async function genLoginFromRegex(bot, msg, password) {
             await bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
             await bot.sendMessage(msg.chat.id, remark, options)
         } catch (error) {
-            functions.logger.warn("Password Error: ", error)
+            functions.logger.error("Password Error: ", error)
             await bot.sendMessage(msg.chat.id, "Failed authenticating password. Try again.")
         }
     }
@@ -394,7 +499,7 @@ async function genSignupFromRegex(bot, msg, password) {
             'status': 'pending'
         }
         text = await genAddEmployee(msg.chat.id, employeeData)
-        await bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
+        // await bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
         await bot.sendMessage(env_config.service.efsec_admin_chat_id, `New User: ${first_name + ' ' + last_name
             }. Wants access to ${access_to.SALES} bot.`) // notify admin
         await bot.sendMessage(msg.chat.id, text)
@@ -416,25 +521,25 @@ async function genHelpSalesFromRegex(bot, msg) {
     \nExample: /login Password00!\n\
     \n/signup - followed by password is used to sign up.\
     \nExample. /signup Password00!\n\
-    \n/logout - is used to logout \n\
-    \n\nEDITTING RECORDS:\n\
-    \n/pickaproject is used to pick a project and proceed to actions menu.\
-    \nIf you know your project\'s id, use /pickaproject followed by id to get straight to action menu.\
-    \nExample /pickaproject 1234567\n\
-    \n/pickabid is used to pick a bid and proceed to actions menu.\
-    \nIf you know your bid\'s id, use /pickabid followed by id to get straight to action menu.\
-    \nExample /pickabid 1234567\n\
-    \n/pickasale is used to pick a retail sale and proceed to actions menu.\
-    \nIf you know your sale\'s id, use /pickasale followed by id to get straight to action menu.\
-    \nExample /pickasale 1234567\n\
-    \n\nYOUR DAY TO DAY TOOLS:\n\
-    \n/uploadBoM is used to upload Bill of Materials for existing projects.\n\
-    \n/viewpricesfromprocurement is used to view all prices to send back to clients.\n\
-    \n/uploadmarginsformanagerreview is used to send margins to management\n\
-    \n/viewpricesreadyforclient is used to view prices ready to be sent to client.\n\
-    \n/addnewproject is used to add a new project.\n\
-    \n/addnewbid is used to add a new bid.\n\
-    \n/addnewsale is used to add a new retail sale.\n'
+    \n/logout - is used to logout \n'
+    // \n\nEDITTING RECORDS:\n\
+    // \n/pickaproject is used to pick a project and proceed to actions menu.\
+    // \nIf you know your project\'s id, use /pickaproject followed by id to get straight to action menu.\
+    // \nExample /pickaproject 1234567\n\
+    // \n/pickabid is used to pick a bid and proceed to actions menu.\
+    // \nIf you know your bid\'s id, use /pickabid followed by id to get straight to action menu.\
+    // \nExample /pickabid 1234567\n\
+    // \n/pickasale is used to pick a retail sale and proceed to actions menu.\
+    // \nIf you know your sale\'s id, use /pickasale followed by id to get straight to action menu.\
+    // \nExample /pickasale 1234567\n\
+    // \n\nYOUR DAY TO DAY TOOLS:\n\
+    // \n/uploadBoM is used to upload Bill of Materials for existing projects.\n\
+    // \n/viewpricesfromprocurement is used to view all prices to send back to clients.\n\
+    // \n/uploadmarginsformanagerreview is used to send margins to management\n\
+    // \n/viewpricesreadyforclient is used to view prices ready to be sent to client.\n\
+    // \n/addnewproject is used to add a new project.\n\
+    // \n/addnewbid is used to add a new bid.\n\
+    // \n/addnewsale is used to add a new retail sale.\n'
     await bot.sendMessage(msg.chat.id, text)
     return
 }
@@ -464,7 +569,7 @@ async function genStartFromRegex(bot, msg, access_requested) {
         if (emp.getSession() == 'live' && emp.getAccessTo().includes(access_requested)) {
             options = {
                 reply_markup: JSON.stringify({
-                    inline_keyboard: levelCommands.main_menu
+                    inline_keyboard: levelCommands.main_menu_for(access_requested)
                 })
             };
             text += 'Your session is active'
@@ -491,15 +596,11 @@ async function genSalesMessageDistributer(bot, msg) {
     const loginFromRegex = msg.text.match(/\/login(.*)/)
     const logoutFromRegex = msg.text.match(/\/logout/)
     const addNewProjectFromRegex = msg.text.match(/\/addnewproject/)
-    const addNewBidFromRegex = msg.text.match(/\/addnewbid/)
-    const addNewSaleFromRegex = msg.text.match(/\/addnewsale/)
     const uploadBoM = msg.text.match(/\/uploadBoM/)
     const viewPricesFromProcurementFromRegex = msg.text.match(/\/viewpricesfromprocurement/)
     const viewPricesReadyForClientsFromRegex = msg.text.match(/\/viewpricesreadyforclient/)
     const uploadMarginsForManagerReviewFromRegex = msg.text.match(/\/uploadmarginsformanagerreview/)
     const pickaProjectFromRegex = msg.text.match(/\/pickaproject(.*)/)
-    const pickaBidFromRegex = msg.text.match(/\/pickabid(.*)/)
-    const pickaSaleFromRegex = msg.text.match(/\/pickasale(.*)/)
 
     if (helpSalesFromRegex) {
         await genHelpSalesFromRegex(bot, msg)
@@ -515,10 +616,6 @@ async function genSalesMessageDistributer(bot, msg) {
         await genLogoutFromRegex(bot, msg)
     } else if (addNewProjectFromRegex) {
         await genCallbackQueryDistributer(bot, msg, 'add_project')
-    } else if (addNewBidFromRegex) {
-        await genCallbackQueryDistributer(bot, msg, 'add_bid')
-    } else if (addNewSaleFromRegex) {
-        await genCallbackQueryDistributer(bot, msg, 'add_sale')
     } else if (uploadBoM) {
         await genCallbackQueryDistributer(bot, msg, 'send_bom')
     } else if (viewPricesFromProcurementFromRegex) {
@@ -534,22 +631,6 @@ async function genSalesMessageDistributer(bot, msg) {
         } else {
             functions.logger.log('/pickaproject called with id ', project_id)
             // await genCallbackQueryDistributer(bot, msg, genMenuForProjectPicked@${project_id}@${project_id}`) TODO
-        }
-    } else if (pickaBidFromRegex) {
-        const bid_id = pickaBidFromRegex[1].trim()
-        if (bid_id == '' || bid_id === null) {
-            await genCallbackQueryDistributer(bot, msg, 'pick_bid')
-        } else {
-            functions.logger.log('/pickabid called with id ', bid_id)
-            // await genCallbackQueryDistributer(bot, msg, `bidPicked@${bid_id}@${bid_id}`) TODO
-        }
-    } else if (pickaSaleFromRegex) {
-        const sale_id = pickaSaleFromRegex[1].trim()
-        if (sale_id == '' || sale_id === null) {
-            await genCallbackQueryDistributer(bot, msg, 'pick_sale')
-        } else {
-            functions.logger.log('/pickasale called with id ', sale_id)
-            // await genCallbackQueryDistributer(bot, msg, `salePicked@${sale_id}@${sale_id}`) TODO
         }
     } else {
         await bot.sendMessage(msg.chat.id, 'Unrecognized command')
@@ -590,85 +671,115 @@ async function genProcurementMessageDistributer(bot, msg) {
 
 async function genReplyDistributer(bot, msg) {
     const [oldText, project_id] = msg.reply_to_message.text.split('projectId: ')
-    let text;
-
-    switch (oldText.trim()) {
-        case 'Reply to this text with attached file (note: must be pdf or excel). Doing so will notify management.': // coming from sales_review_1
-            try {
-                await genUpdateProject(project_id, { 'BoQ_revised': msg.document.file_id })
-                text = await genUpdateProject(project_id, { 'status': project_status.MANAGER_REVIEW })
-                await bot.sendMessage(msg.chat.id, text + '. Waiting for manager\'s review')
-
-                const trello_card = (await genProjectWithId(project_id)).getTrelloCardId()
-                await genTrelloMoveCardFromListtoList(trello_card, project_status_to_trello_idList_map[project_status.MANAGER_REVIEW])
-            } catch (error) {
-                functions.logger.warn('error\n' + error)
-                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
-            }
-            break
-        case 'Reply to this text with attached file (note: must be pdf or excel). Doing so will notify procurement department.':
-            try {
-                await genUpdateProject(project_id, { 'BoM': msg.document.file_id })
-                text = await genUpdateProject(project_id, { 'status': project_status.PROCUREMENT_REVIEW })
-                await bot.sendMessage(msg.chat.id, text + '. Waiting for precurement to send prices.')
-
-                const trello_card = (await genProjectWithId(project_id)).getTrelloCardId()
-                await genTrelloMoveCardFromListtoList(trello_card, project_status_to_trello_idList_map[project_status.PROCUREMENT_REVIEW])
-            } catch (error) {
-                functions.logger.warn('error\n' + error)
-                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
-            }
-            break
-        case 'Reply to this text with attached file (note: must be pdf or excel). Doing so will notify sales department.':
-            try {
-                await genUpdateProject(project_id, { 'BoQ': msg.document.file_id })
-                text = await genUpdateProject(project_id, { 'status': project_status.SALES_REVIEW_1 })
-                await bot.sendMessage(msg.chat.id, text + '. Waiting review from sales dept.')
-
-                const trello_card = (await genProjectWithId(project_id)).getTrelloCardId()
-                await genTrelloMoveCardFromListtoList(trello_card, project_status_to_trello_idList_map[project_status.SALES_REVIEW_1])
-            } catch (error) {
-                functions.logger.warn('error\n' + error)
-                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
-            }
-            break
+    const doc_type = oldText.trim().split(' attached ')[1].split(' (note')[0]
+    let text, document;
+    switch(oldText.trim()){
         case 'Reply to this message with new amount.':
             try {
                 text = await genUpdateProject(project_id, { 'contractAmount': msg.text })
+                const trello_card = (await genProjectWithId(project_id)).getTrelloCardId()
+                await getTrelloAddUpdateToDescription(trello_card, `Contract amount updated by ${msg.chat.id} on ${msg.date}. New amount is ${msg.text}`)
                 await bot.sendMessage(msg.chat.id, text)
             } catch (error) {
-                functions.logger.warn('error\n' + error)
+                functions.logger.error(error)
                 await bot.sendMessage(msg.chat.id, 'Failed. Try again')
             }
-            break
+            return
         case 'Reply to this message with new deliver date (DD-MM-YYYY).':
             try {
                 text = await genUpdateProject(project_id, { 'deliverBy': msg.text })
+                await getTrelloAddUpdateToDescription(trello_card, `Delivery date updated by ${msg.chat.id} on ${msg.date}. New date is ${msg.text}`)
                 await bot.sendMessage(msg.chat.id, text)
             } catch (error) {
-                functions.logger.warn('error\n' + error)
+                functions.logger.error(error)
                 await bot.sendMessage(msg.chat.id, 'Failed. Try again')
             }
-            break
+            return
         case 'Reply to this message with new expected payment date (DD-MM-YYYY).':
             try {
                 text = await genUpdateProject(project_id, { 'expectPaymentBy': msg.text })
+                await getTrelloAddUpdateToDescription(trello_card, `Expected Payment Date updated by ${msg.chat.id} on ${msg.date}. New date is ${msg.text}`)
                 await bot.sendMessage(msg.chat.id, text)
             } catch (error) {
-                functions.logger.warn('error\n' + error)
+                functions.logger.error(error)
                 await bot.sendMessage(msg.chat.id, 'Failed. Try again')
             }
-            break
+            return
+        default:
+            break  
+    }
+
+    switch (doc_type) {
+        case file_purpose.BoQ_revised: // coming from sales_review_1
+            try {
+                document = msg.document ? msg.document.file_id : msg.photo.file_id
+                text = await genAddFileToProject(project_id, file_purpose.BoQ_revised, document)
+                // text = await genUpdateProject(project_id, { 'status': project_status.MANAGER_REVIEW })
+                await bot.sendMessage(msg.chat.id, text + '. Waiting for manager\'s review')
+
+                const trello_card = (await genProjectWithId(project_id)).getTrelloCardId()
+                await getTrelloAddUpdateToDescription(trello_card, `Revised BoQ added by ${msg.chat.id} on ${msg.date}`)
+                // await genTrelloMoveCardFromListtoList(trello_card, project_status_to_trello_idList_map[project_status.MANAGER_REVIEW])
+            } catch (error) {
+                functions.logger.error(error)
+                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
+            }
+            return
+        case file_purpose.BoM:
+            try {
+                document = msg.document ? msg.document.file_id : msg.photo.file_id
+                text = await genAddFileToProject(project_id, file_purpose.BoM, document)
+                // await genUpdateProject(project_id, { 'status': project_status.PROCUREMENT_REVIEW })
+                await bot.sendMessage(msg.chat.id, text + '. Waiting for procurement to send prices.')
+
+                const trello_card = (await genProjectWithId(project_id)).getTrelloCardId()
+                await getTrelloAddUpdateToDescription(trello_card, `BoM added by ${msg.chat.id} on ${msg.date}`)
+                // await genTrelloMoveCardFromListtoList(trello_card, project_status_to_trello_idList_map[project_status.PROCUREMENT_REVIEW])
+            } catch (error) {
+                functions.logger.error(error)
+                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
+            }
+            return
+        case file_purpose.BoQ:
+            try {
+                document = msg.document ? msg.document.file_id : msg.photo.file_id
+                text = await genAddFileToProject(project_id, file_purpose.BoQ, document)
+                // text = await genUpdateProject(project_id, { 'status': project_status.SALES_REVIEW_1 })
+                await bot.sendMessage(msg.chat.id, text + '. Waiting review from sales dept.')
+
+                const trello_card = (await genProjectWithId(project_id)).getTrelloCardId()
+                await getTrelloAddUpdateToDescription(trello_card, `BoQ added by ${msg.chat.id} on ${msg.date}`)
+                // await genTrelloMoveCardFromListtoList(trello_card, project_status_to_trello_idList_map[project_status.SALES_REVIEW_1])
+            } catch (error) {
+                functions.logger.error(error)
+                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
+            }
+            return
+        case file_purpose.PI:
+            try {
+                document = msg.document ? msg.document.file_id : msg.photo.file_id
+                text = await genAddFileToProject(project_id, file_purpose.PI, document)
+                // text = await genUpdateProject(project_id, { 'status': project_status.SALES_REVIEW_1 })
+                await bot.sendMessage(msg.chat.id, text)
+
+                const trello_card = (await genProjectWithId(project_id)).getTrelloCardId()
+                await getTrelloAddUpdateToDescription(trello_card, `PI added by ${msg.chat.id} on ${msg.date}`)
+                // await genTrelloMoveCardFromListtoList(trello_card, project_status_to_trello_idList_map[project_status.SALES_REVIEW_1])
+            } catch (error) {
+                functions.logger.error(error)
+                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
+            }
+            return
         default:
             await bot.sendMessage(msg.chat_id, 'Reply unrecognized')
-            break
+            return
     }
-    return
 }
 
 async function genCallbackQueryDistributer(bot, msg, action) {
+
     // get data passed by button clicked regex match
-    const projectPickedFromRegex = action.match(/projectPicked@(.*)@(.*)/) // project id @ name
+    const projectPickedFromRegex = action.match(/projectPicked@(.*)/) // project id
     const statusPickedFromRegex = action.match(/statusPicked@(.*)@(.*)/) // project id @ status
     const paymentModePickedFromRegex = action.match(/paymentModePicked@(.*)@(.*)/) // project id @ paymentMode
     const uploadBoMFromRegex = action.match(/upload_BoM@(.*)/) // project id
@@ -681,7 +792,10 @@ async function genCallbackQueryDistributer(bot, msg, action) {
     const addPaymentModeFromRegex = action.match(/add_payment_mode@(.*)/) // project id
     const addOrUpdateDeliverByFromRegex = action.match(/add_or_update_deliver_by@(.*)/) // project id
     const addOrUpdateExpectPaymentDateFromRegex = action.match(/add_or_update_expect_payment_date@(.*)/) // project id
-
+    const viewDocFromRegex = action.match(/doc@(.*)@(.*)/) // doc type and id
+    const sendDocFromRegex = action.match(/doc@(.*)@(.*)/) // doc type and id
+    const viewDocTypeFromRegex = action.match(/view_doc@(.*)/) // doc type
+    const sendDocTypeFromRegex = action.match(/send_doc@(.*)/) // doc type
     if (projectPickedFromRegex !== null) {
         await genProjectPickedHandler(bot, msg, projectPickedFromRegex)
     } else if (uploadBoMFromRegex !== null) {
@@ -708,31 +822,39 @@ async function genCallbackQueryDistributer(bot, msg, action) {
         await genAddOrUpdatePaymentModeHandler(bot, msg, addPaymentModeFromRegex)
     } else if (paymentModePickedFromRegex !== null) {
         await genPaymentModePickedHandler(bot, msg, paymentModePickedFromRegex)
+    } else if (viewDocFromRegex !== null) {
+        const doc_type = viewDocFromRegex[1]
+        const id = viewDocFromRegex[2]
+        await viewDocFromRegexHandler(bot, msg, doc_type, id)
+    } else if (sendDocFromRegex !== null) {
+        const doc_type = sendDocFromRegex[1]
+        const id = sendDocFromRegex[2]
+        await sendDocFromRegexHandler(bot, msg, doc_type, id)
+    } else if (viewDocTypeFromRegex !== null) {
+        const doc_type = viewDocTypeFromRegex[1]
+        await genViewOrSendDoc(bot, msg, doc_type, 'view')
+    } else if (sendDocTypeFromRegex !== null) {
+        const doc_type = sendDocTypeFromRegex[1]
+        await genViewOrSendDoc(bot, msg, doc_type, 'send')
     }
 
     else {
         // regex not matched aka no external data passed
         switch (action) {
-            case 'add_items_sale':
-                await genSendGoogleForm(bot, msg, env_config.service.sales_item_form_link)
-                break
-            case 'add_bid':
-                await genSendGoogleForm(bot, msg, env_config.service.sales_bid_form_link)
-                break
             case 'add_project':
                 await genSendGoogleForm(bot, msg, env_config.service.sales_project_forms_link)
                 break
             case 'pick_project':
                 await genPickProjectHandler(bot, msg, project_source.PROJECT)
                 break
-            case 'pick_sale':
-                await genPickProjectHandler(bot, msg, project_source.RETAIL)
-                break
-            case 'pick_bid':
-                await genPickProjectHandler(bot, msg, project_source.BID)
-                break
             case 'send_bom':
                 await genSendBoMsHandler(bot, msg)
+                break
+            case 'send_doc':
+                await genDocPicker(bot, msg, 'send')
+                break
+            case 'view_doc':
+                await genDocPicker(bot, msg, 'view')
                 break
             case 'view_boms':
                 await genViewBoMsHandler(bot, msg)

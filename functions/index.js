@@ -3,7 +3,7 @@ global.fetch = require("node-fetch");
 global.functions = require('firebase-functions')
 global.env_config = Object.keys(functions.config()).length ? functions.config() : require('./env.json')
 
-const { genSalesBotEntry, genProcurementBotEntry, genTrelloEntry } = require('./src/webhookFunctions/index')
+const { genSalesBotEntry, genProcurementBotEntry, genTrelloEntry, genProformaInvoiceNumber } = require('./src/webhookFunctions/index')
 
 exports.webhookSales = functions
     .region('europe-west1')
@@ -19,3 +19,8 @@ exports.webhookTrello = functions
     .region('europe-west1')
     .https
     .onRequest(genTrelloEntry)
+
+exports.genProformaInvoiceNumber = functions
+    .region('europe-west1')
+    .https
+    .onRequest(genProformaInvoiceNumber)
