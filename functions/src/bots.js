@@ -9,5 +9,5 @@ var management_bot = new TelegramBot(env_config.service.management_bot_token, op
 module.exports = {
     sales_bot,
     procurement_bot,
-    management_bot
+    management_bot,
 }

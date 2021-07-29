@@ -149,7 +149,21 @@ const genProjectWithId = async (id) => {
         return null
     }
 }
+const genProjectWithPINum = async (pi_num) => {
+    try {
+        
+        const data = await firestore.collection('projects')
+            .where('pi_num', '==', pi_num)
+            .get();
+        const noDataWarning = `No projects with PI # ${pi_num}`
+        return createProjectsObjectIfData(data, noDataWarning)[0]
+        
+    } catch (error) {
+        functions.logger.error("error\n" + error);
+        return null
+    }
 
+}
 const genProjectWithTrelloCardId = async (idCard) => {
     try {
         const data = await firestore.collection('projects')
@@ -194,6 +208,38 @@ const genAddFileToProject = async (id, file_type, file_id) => {
                 old = data.proforma
                 old.push(file_id)
                 return await genUpdateProject(id, { 'proforma': old })
+            case file_purpose.PO:
+                old = data.po
+                if (old) {
+                    old.push(file_id)
+                    return await genUpdateProject(id, { 'po': old })
+                } else {
+                    return await genUpdateProject(id, { 'po': [file_id] })
+                }
+            case file_purpose.CONTRACT:
+                old = data.contract
+                if (old) {
+                    old.push(file_id)
+                    return await genUpdateProject(id, { 'contract': old })
+                } else {
+                    return await genUpdateProject(id, { 'contract': [file_id] })
+                }
+            case file_purpose.BID:
+                old = data.bid
+                if (old) {
+                    old.push(file_id)
+                    return await genUpdateProject(id, { 'bid': old })
+                } else {
+                    return await genUpdateProject(id, { 'bid': [file_id] })
+                }
+            case file_purpose.OTHER:
+                old = data.other
+                if (old) {
+                    old.push(file_id)
+                    return await genUpdateProject(id, { 'other': old })
+                } else {
+                    return await genUpdateProject(id, { 'other': [file_id] })
+                }
             default:
                 return 'Failed. Try again.'
         }
@@ -225,6 +271,7 @@ module.exports = {
     genAllOpenProjectsWithBoQ,
     genAllOpenProjectsWithStatus,
     genOpenProjectsWithFileType,
+    genProjectWithPINum,
     genUpdateProject,
     genAddFileToProject,
     genDeleteProject,

@@ -12,7 +12,7 @@ const genTrelloMoveCardFromListtoList = async (idCard, idListDestination) => {
     return res_text
 }
 
-const getTrelloAddUpdateToDescription = async (idCard, update) => {
+const genTrelloAddUpdateToDescription = async (idCard, update) => {
     var url = `https://api.trello.com/1/cards/${idCard}?key=${env_config.service.trello_api_key}&token=${env_config.service.trello_token}`
     var options = {
         method: 'GET',
@@ -29,4 +29,4 @@ const getTrelloAddUpdateToDescription = async (idCard, update) => {
     })
     return res_text
 }
-module.exports = { genTrelloMoveCardFromListtoList, getTrelloAddUpdateToDescription }
+module.exports = { genTrelloMoveCardFromListtoList, genTrelloAddUpdateToDescription }

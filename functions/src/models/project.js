@@ -2,7 +2,7 @@ const { file_purpose } = require('../values/enums')
 
 class Project {
     constructor(id, clientName, projectTitle, site, contractAmount,
-        paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, revisedBoQ, BoM, PI, status, updates, trelloCardId) {
+        paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, revisedBoQ, BoM, proforma, status, updates, trelloCardId) {
         this.id = id;
         this.clientName = clientName;
         this.projectTitle = projectTitle;
@@ -16,7 +16,7 @@ class Project {
         this.BoQ = BoQ;
         this.revisedBoQ = revisedBoQ;
         this.BoM = BoM;
-        this.PI = PI;
+        this.proforma = proforma;
         this.status = status;
         this.updates = updates;
         this.trelloCardId = trelloCardId;
@@ -65,7 +65,7 @@ class Project {
                 file = this.getRevisedBoQ()
                 break
             case file_purpose.PI:
-                file = this.getPI()
+                file = this.getProforma()
                 break
             case file_purpose.PO:
                 break
@@ -89,8 +89,8 @@ class Project {
     getBoM() {
         return this.BoM
     }
-    getPI() {
-        return this.PI
+    getProforma() {
+        return this.proforma
     }
     getStatus() {
         return this.status

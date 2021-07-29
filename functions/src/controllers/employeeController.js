@@ -49,6 +49,15 @@ const genEmployeesWithStatus = async (status) => {
     }
 }
 
+const genEmployeeWithAccess = async (access_to) => {
+    try {
+        const data = await firestore.collection('employees').where('accessTo', 'array-contains', access_to).get();
+        return createEmployeeObjectIfData(data, 'No employee record found')
+    } catch (error) {
+        functions.logger.error(error);
+        return null
+    }
+}
 const genEmployee = async (id) => {
     id = `${id}`
     try {
@@ -161,6 +170,7 @@ module.exports = {
     genEmployeesWithStatus,
     genUpdateEmployee,
     genDeleteEmployee,
+    genEmployeeWithAccess,
     genEmployeeLogin,
     genEmployeeLogout
 }

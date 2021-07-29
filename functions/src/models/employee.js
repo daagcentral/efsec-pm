@@ -10,7 +10,7 @@ class Employee {
         this.session = session;
         this.accessTo = accessTo;
     }
-
+    // TODO hange to getID
     getId() {
         return this.id;
     }

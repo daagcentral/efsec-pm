@@ -1,21 +1,21 @@
-const { project_status, project_source, access_to, payment_mode } = require('./values/enums')
-const { genProjectWithId } = require('./controllers/projectController')
+const { project_status, project_source, access_to, payment_mode, file_purpose } = require('./values/enums')
 const { respace } = require('./controllers/utils/modelUtils')
 const main_menu_sales = [
     [{ text: 'New Sales Activity', callback_data: 'add_project' }],
+    [{ text: 'View Client Document', callback_data: 'view_doc' }],
     [{ text: 'Upload Client Document', callback_data: 'send_doc' }],
-    [{ text: 'View Client Document', callback_data: 'view_doc' }]
-    // [{ text: 'View Prices from Procurement', callback_data: 'view_boqs' }],
-    // [{ text: 'Send Margins for Review', callback_data: 'send_margins_for_review' }],
-    // [{ text: 'View Prices Ready for Client', callback_data: 'prices_ready_for_client' }],
+    [{ text: `Change Project Status`, callback_data: `change_status` }],
     [{ text: 'Leave', callback_data: 'leave' }],
 ]
+// [{ text: 'View Prices from Procurement', callback_data: 'view_boqs' }],
+// [{ text: 'Send Margins for Review', callback_data: 'send_margins_for_review' }],
+// [{ text: 'View Prices Ready for Client', callback_data: 'prices_ready_for_client' }],
 
 const main_menu_procurement = [
     [{ text: 'View BoMs', callback_data: 'view_boms' }],
     [{ text: 'Send Prices', callback_data: 'send_prices' }],
     [{ text: 'Ask for Clarification', callback_data: 'ask_clarification' }],
-    [{ text: 'Leave', callback_data: 'leave' }],
+    [{ text: 'Leave', callback_data: 'leave' }]
 ]
 
 const main_menu_for = (access_requested) => {
@@ -32,22 +32,8 @@ const main_menu_for = (access_requested) => {
 const genMenuForProjectPicked = (id, source) => {
     var menu = [
         [{ text: 'View Client Document', callback_data: 'view_doc' }],
-        // project.getBoQ() != '' ?
-        //     [{
-        //         text: 'Download Prices',
-        //         callback_data: `download_BoQ@${id}`
-        //     }] : [{
-        //         text: 'Send Procurement Dept. reminder to get prices',
-        //         callback_data: `send_procurement_reminder@${id}`
-        //     }]
-        // ,
         [{ text: `Change Status`, callback_data: `change_project_status@${id}` }],
-        // [{
-        //     text: 'Add Payment Mode',
-        //     callback_data: `add_payment_mode@${id}`
-        // }],
     ]
-
     switch (source) {
         case project_source.BID:
             menu.push([{
@@ -83,36 +69,18 @@ const genMenuForProjectPicked = (id, source) => {
     return menu
 }
 
-const document_types = (sendOrView) => {
-    return [
-        [{ text: 'BoM', callback_data: sendOrView + '_bom' }],
-        [{ text: 'Proforma', callback_data: sendOrView + '_pi' }]
-        [{ text: 'PO', callback_data: sendOrView + '_po' }],
-        [{ text: 'Contract', callback_data: sendOrView + '_contract' }],
-        [{ text: 'Bid', callback_data: sendOrView + '_bid' }],
-        [{ text: 'Other', callback_data: sendOrView + '_other' }]
-    ]
-}
-
-const document_types_with_id = (sendOrView, doc_type, id) => {
-    return [
-        [{ text: 'BoM', callback_data: sendOrView + '_bom' }],
-        [{ text: 'Proforma', callback_data: sendOrView + '_pi' }]
-        [{ text: 'PO', callback_data: sendOrView + '_po' }],
-        [{ text: 'Contract', callback_data: sendOrView + '_contract' }],
-        [{ text: 'Bid', callback_data: sendOrView + '_bid' }],
-        [{ text: 'Other', callback_data: sendOrView + '_other' }]
-    ]
+const document_types = (view_or_send) => {
+    return Object.values(file_purpose)
+        .filter(type => type !== file_purpose.PROFILE_PIC && type !== file_purpose.BoQ_revised)
+        .map(type => [{
+            text: (type.charAt(0).toUpperCase() + type.slice(1)).replace("_", " "),
+            callback_data: `${view_or_send}@${type}`
+        }])
 }
 
 const generateProjectStatusOptions = (id, currentOption) => {
     var status_list = Object.values(project_status).filter(
-        status =>
-            status !== currentOption
-        // status !== project_status.PROCUREMENT_REVIEW &&
-        // status !== project_status.SALES_REVIEW_1 &&
-        // status !== project_status.SALES_REVIEW_2 &&
-        // status !== project_status.MANAGER_REVIEW
+        status => status !== currentOption
     )
     return status_list.map(status => [{ text: status, callback_data: `statusPicked@${id}@${status}` }])
 }
@@ -132,37 +100,18 @@ const generateProjectsList = (projects) => {
 const generateProjectListForSendOrViewDoc = (projects, view_or_send, doc_type) => {
     return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `${view_or_send}@${doc_type}@${project.getId()}` }])
 }
-const generateProjectsListforBoMDownload = (projects) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `download_BoM@${project.getId()}` }])
-}
 
-const generateProjectsListforBoQDownload = (projects) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `download_BoQ@${project.getId()}` }])
-}
-
-const generateProjectsListforBoMUpload = (projects) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `upload_BoM@${project.getId()}` }])
-}
-
-const generateProjectsListforBoQUpload = (projects) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `upload_BoQ@${project.getId()}` }])
-}
-
-const generateProjectsListforBoQReview = (projects) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `send_for_manager_review@${project.getId()}` }])
+const generateProjectListForStatusChange = (projects) => {
+    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `change_project_status@${project.getId()}` }])
 }
 
 module.exports = {
     main_menu_for,
     document_types,
-    generateProjectsListforBoMUpload,
-    generateProjectsListforBoQDownload,
-    generateProjectsListforBoQReview,
-    generateProjectsListforBoMDownload,
-    generateProjectsListforBoQUpload,
     generateProjectListForSendOrViewDoc,
     generateProjectsList,
     generateProjectStatusOptions,
+    generateProjectListForStatusChange,
     generatePaymentModeOptions,
     genMenuForProjectPicked
 }
