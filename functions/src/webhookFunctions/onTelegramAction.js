@@ -1,4 +1,5 @@
 const levelCommands = require('../levelcommands')
+const { unixTimeConverter } = require("./utils")
 const {
     genAddEmployee,
     genEmployeeLogout,
@@ -48,9 +49,9 @@ const genSendGoogleForm = async (bot, msg, form) => {
 }
 
 
-const genPickProjectHandler = async (bot, msg) => {
+const genPickInitProjectHandler = async (bot, msg) => {
     let opts, text;
-    const open_projects = await genAllOpenProjects()
+    const open_projects = await genAllOpenProjectsWithStatus(project_status.INIT)
     if (open_projects) {
         const open_projects_list = generateProjectListForStatusChange(open_projects)
         opts = {
@@ -196,7 +197,8 @@ const genStatusPickedHandler = async (bot, msg, regex) => {
     const idCard = project.getTrelloCardId()
     const old_status = project.getStatus()
     const text = await genUpdateProject(project_id, { 'status': new_status })
-    await genTrelloAddUpdateToDescription(idCard, `Status changed by ${msg.chat.id} on ${msg.date} from ${old_status} to ${new_status}`)
+    const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
+    await genTrelloAddUpdateToDescription(idCard, `Status changed by ${employeeName} on ${unixTimeConverter(msg.date)} from ${old_status} to ${new_status}`)
     await genTrelloMoveCardFromListtoList(idCard, project_status_to_trello_idList_map[new_status])
     await bot.sendMessage(msg.chat.id, text);
     return
@@ -601,7 +603,8 @@ async function genReplyDistributer(bot, msg) {
             try {
                 text = await genUpdateProject(project_id, { 'contractAmount': msg.text })
                 trello_card_id = (await genProjectWithId(project_id)).getTrelloCardId()
-                await genTrelloAddUpdateToDescription(trello_card_id, `Contract amount updated by ${msg.chat.id} on ${msg.date}. New amount is ${msg.text}`)
+                const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
+                await genTrelloAddUpdateToDescription(trello_card_id, `Contract amount updated by ${employeeName} on ${unixTimeConverter(msg.date)}. New amount is ${msg.text}`)
                 await bot.sendMessage(msg.chat.id, text)
             } catch (error) {
                 functions.logger.error(error)
@@ -612,7 +615,8 @@ async function genReplyDistributer(bot, msg) {
             try {
                 text = await genUpdateProject(project_id, { 'deliverBy': msg.text })
                 trello_card_id = (await genProjectWithId(project_id)).getTrelloCardId()
-                await genTrelloAddUpdateToDescription(trello_card_id, `Delivery date updated by ${msg.chat.id} on ${msg.date}. New date is ${msg.text}`)
+                const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
+                await genTrelloAddUpdateToDescription(trello_card_id, `Delivery date updated by ${employeeName} on ${unixTimeConverter(msg.date)}. New date is ${msg.text}`)
                 await bot.sendMessage(msg.chat.id, text)
             } catch (error) {
                 functions.logger.error(error)
@@ -623,7 +627,8 @@ async function genReplyDistributer(bot, msg) {
             try {
                 text = await genUpdateProject(project_id, { 'expectPaymentBy': msg.text })
                 trello_card_id = (await genProjectWithId(project_id)).getTrelloCardId()
-                await genTrelloAddUpdateToDescription(trello_card_id, `Expected Payment Date updated by ${msg.chat.id} on ${msg.date}. New date is ${msg.text}`)
+                const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
+                await genTrelloAddUpdateToDescription(trello_card_id, `Expected Payment Date updated by ${employeeName} on ${unixTimeConverter(msg.date)}. New date is ${msg.text}`)
                 await bot.sendMessage(msg.chat.id, text)
             } catch (error) {
                 functions.logger.error(error)
@@ -639,7 +644,8 @@ async function genReplyDistributer(bot, msg) {
                 document = msg.document ?? msg.photo
                 file_id = document.file_id
                 text = await genAddFileToProject(project_id, 'proforma', file_id)
-                await genTrelloAddUpdateToDescription(trello_card_id, `Proforma added by ${msg.chat.id} on ${msg.date}.`)
+                const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
+                await genTrelloAddUpdateToDescription(trello_card_id, `Proforma added by ${employeeName} on ${unixTimeConverter(msg.date)}.`)
                 await bot.sendMessage(msg.chat.id, text)
             } catch (error) {
                 functions.logger.error(error)
@@ -656,9 +662,10 @@ async function genReplyDistributer(bot, msg) {
             text = await genAddFileToProject(project_id, doc_type, file_id)
             await bot.sendMessage(msg.chat.id, text)
             trello_card_id = (await genProjectWithId(project_id)).getTrelloCardId()
+            const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
             await genTrelloAddUpdateToDescription(
                 trello_card_id,
-                `${(doc_type.charAt(0).toUpperCase() + doc_type.slice(1)).replace("_", " ")} added by ${msg.chat.id} on ${msg.date}`
+                `${(doc_type.charAt(0).toUpperCase() + doc_type.slice(1)).replace("_", " ")} added by ${employeeName} on ${unixTimeConverter(msg.date)}`
             )
             await bot.sendMessage(msg.chat.id, text)
         } catch (error) {
@@ -746,7 +753,7 @@ async function genCallbackQueryDistributer(bot, msg, action) {
                 await genDocPicker(bot, msg, 'view')
                 break
             case 'change_status':
-                await genPickProjectHandler(bot, msg)
+                await genPickInitProjectHandler(bot, msg)
                 break
             case 'leave':
                 genLeaveHandler(bot, msg)
