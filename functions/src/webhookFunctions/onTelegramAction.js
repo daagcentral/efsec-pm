@@ -7,7 +7,6 @@ const {
     genEmployeeLogin
 } = require('../controllers/employeeController')
 const {
-    genAllOpenProjects,
     genAllOpenProjectsWithStatus,
     genOpenProjectsWithFileType,
     genProjectWithId,
@@ -20,7 +19,6 @@ const {
     genTrelloAddUpdateToDescription
 } = require('../controllers/trelloController')
 const {
-    generateProjectsList,
     generateProjectListForStatusChange,
     generateProjectListForSendOrViewDoc,
     document_types,
@@ -30,21 +28,18 @@ const {
 } = require('../levelcommands')
 const {
     access_to,
-    project_source,
     project_status,
-    file_purpose
 } = require('../values/enums')
 const { project_status_to_trello_idList_map } = require('../values/maps')
 const { respace } = require('../controllers/utils/modelUtils')
 const {
-    sales_bot,
-    procurement_bot
+    sales_bot
 } = require('../bots')
 
-const genSendGoogleForm = async (bot, msg, form) => {
+const genSendGoogleForm = (bot, msg, form) => {
     const text =
         `Step 1: Copy your ID link:\nwww.${msg.chat.id}.com\n\nStep 2: Add the new project here:\n${form}` // google form URL
-    await bot.sendMessage(msg.chat.id, text);
+    bot.sendMessage(msg.chat.id, text);
     return
 }
 
@@ -63,13 +58,13 @@ const genPickInitProjectHandler = async (bot, msg) => {
     } else {
         text = `No open projects`
     }
-    await bot.sendMessage(msg.chat.id, text, opts);
+    bot.sendMessage(msg.chat.id, text, opts);
     return
 }
 
 const genLeaveHandler = async (bot, msg) => {
     const text = await genEmployeeLogout(msg.chat.id)
-    await bot.sendMessage(msg.chat.id, text)
+    bot.sendMessage(msg.chat.id, text)
     return
 }
 
@@ -83,10 +78,10 @@ const genProjectPickedHandler = async (bot, msg, regex) => {
                 inline_keyboard: menu
             }),
         };
-        await bot.sendMessage(msg.chat.id, "Select one...", options);
+        bot.sendMessage(msg.chat.id, "Select one...", options);
     } catch (error) {
         functions.logger.error("error\n" + error)
-        await bot.sendMessage(msg.chat.id, 'Failed to get info on project. Make sure the id is correct')
+        bot.sendMessage(msg.chat.id, 'Failed to get info on project. Make sure the id is correct')
     }
     return
 }
@@ -105,74 +100,7 @@ const genSendForManagerReviewFromRegexHandler = async (bot, msg, regex) => {
     } else {
         text = 'Prices already sent for review'
     }
-    await bot.sendMessage(msg.chat.id, text, options);
-    return
-}
-
-
-// TODO check uploaded file is pdf
-const genUploadBoMFromRegexHandler = async (bot, msg, regex) => {
-    const project_id = regex[1]
-    const bom = (await genProjectWithId(project_id)).getBoM()
-    let text, options
-    if (bom == '' || bom == null) {
-        text = `Reply to this text with attached file (note: file must be pdf, excel, or photo). Doing so will notify procurement department.\nprojectId: ${project_id}`
-        options = {
-            reply_markup: JSON.stringify({
-                force_reply: true,
-            })
-        };
-    } else {
-        text = 'Bill of Materials already uploaded'
-    }
-    await bot.sendMessage(msg.chat.id, text, options);
-    return
-}
-
-const genDownloadBoMFromRegexHandler = async (bot, msg, regex) => {
-    try {
-        const project_id = regex[1]
-        const BoMs = (await genProjectWithId(project_id)).getBoM()
-        const BoM_file_id = BoMs[BoMs.length - 1] // get latest BoM
-        const channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, BoM_file_id)
-        await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
-        await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
-    } catch (error) {
-        functions.logger.error("error\n" + error)
-    }
-    return
-}
-
-const genDownloadBoQFromRegexHandler = async (bot, msg, regex) => {
-    try {
-        const project_id = regex[1]
-        const BoQs = (await genProjectWithId(project_id)).getBoQ()
-        const BoQ_file_id = BoQs[BoQs.length - 1] // get latest BoM
-        const channel_msg = await procurement_bot.sendDocument(env_config.service.efsec_admin_chat_id, BoQ_file_id)
-        await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
-        await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
-    } catch (error) {
-        functions.logger.error("error\n" + error)
-    }
-    return
-}
-
-// TODO check uploaded file is pdf
-const genUploadBoQFromRegexHandler = async (bot, msg, regex) => {
-    const project_id = regex[1]
-    const boq = (await genProjectWithId(project_id)).getBoQ()
-    let text, options
-    if (boq == '' || boq == null) {
-        text = `Reply to this text with attached file (note: file must be pdf, excel, or photo). Doing so will notify sales department.\nprojectId: ${project_id}`
-        options = {
-            reply_markup: JSON.stringify({
-                force_reply: true,
-            })
-        };
-    } else {
-        text = "Prices already uploaded."
-    }
-    await bot.sendMessage(msg.chat.id, text, options);
+    bot.sendMessage(msg.chat.id, text, options);
     return
 }
 
@@ -186,7 +114,7 @@ const genChangeProjectStatusHandler = async (bot, msg, regex) => {
             inline_keyboard: menu
         }),
     }
-    await bot.sendMessage(msg.chat.id, text, options);
+    bot.sendMessage(msg.chat.id, text, options);
     return
 }
 
@@ -199,8 +127,8 @@ const genStatusPickedHandler = async (bot, msg, regex) => {
     const text = await genUpdateProject(project_id, { 'status': new_status })
     const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
     await genTrelloAddUpdateToDescription(idCard, `Status changed by ${employeeName} on ${unixTimeConverter(msg.date)} from ${old_status} to ${new_status}`)
-    await genTrelloMoveCardFromListtoList(idCard, project_status_to_trello_idList_map[new_status])
-    await bot.sendMessage(msg.chat.id, text);
+    genTrelloMoveCardFromListtoList(idCard, project_status_to_trello_idList_map[new_status])
+    bot.sendMessage(msg.chat.id, text);
     return
 }
 
@@ -208,7 +136,7 @@ const genPaymentModePickedHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
     const new_mode = regex[2]
     const text = await genUpdateProject(project_id, { 'paymentMode': new_mode })
-    await bot.sendMessage(msg.chat.id, text);
+    bot.sendMessage(msg.chat.id, text);
     return
 }
 
@@ -225,7 +153,7 @@ const genAddOrUpdateContractAmountHandler = async (bot, msg, regex) => {
             force_reply: true
         })
     };
-    await bot.sendMessage(msg.chat.id, text, options)
+    bot.sendMessage(msg.chat.id, text, options)
     return
 }
 
@@ -245,7 +173,7 @@ const genAddOrUpdateDeliverByHandler = async (bot, msg, regex) => {
             force_reply: true
         })
     };
-    await bot.sendMessage(msg.chat.id, text, options)
+    bot.sendMessage(msg.chat.id, text, options)
     return
 }
 
@@ -257,14 +185,14 @@ const genAddOrUpdateExpectPaymentDateHandler = async (bot, msg, regex) => {
     var text = `Current expected payment date for ${respace(project.getProjectTitle())} is ${current_date === ''
         ? 'not added'
         : current_date}.`
-    bot.sendMessage(msg.chat.id, text)
+    await bot.sendMessage(msg.chat.id, text)
     text = `Reply to this message with new expected payment date (DD-MM-YYYY).\nprojectId: ${project_id}`
     const options = {
         reply_markup: JSON.stringify({
             force_reply: true
         })
     };
-    await bot.sendMessage(msg.chat.id, text, options)
+    bot.sendMessage(msg.chat.id, text, options)
     return
 }
 
@@ -282,7 +210,7 @@ const genAddOrUpdatePaymentModeHandler = async (bot, msg, regex) => {
             inline_keyboard: menu
         }),
     }
-    await bot.sendMessage(msg.chat.id, text, options);
+    bot.sendMessage(msg.chat.id, text, options);
     return
 }
 
@@ -291,9 +219,9 @@ const genPIFromRegexHandler = async (bot, msg, pi_num) => {
         const project = await genProjectWithPINum(parseInt(pi_num)) // there's only one of this
         if (project) {
             await bot.sendMessage(msg.chat.id, `ID: ${project.getId()}\nTitle: ${respace(project.getProjectTitle())} Owner: ${"undefined"}`)
-            await genCallbackQueryDistributer(bot, msg, `view@proforma@${project.getId()}`)
+            genCallbackQueryDistributer(bot, msg, `view@proforma@${project.getId()}`)
         } else {
-            await bot.sendMessage(msg.chat.id, `No project with PI # ${pi_num}`)
+            bot.sendMessage(msg.chat.id, `No project with PI # ${pi_num}`)
         }
     } catch (error) {
         functions.logger.error(error)
@@ -303,6 +231,7 @@ const genPIFromRegexHandler = async (bot, msg, pi_num) => {
 
 const genViewDocFromRegexHandler = async (bot, msg, doc_type, id) => {
     try {
+        bot.sendChatAction(msg.chat.id, "upload_document")
         const docs = (await genProjectWithId(id)).getDoc(doc_type)
         if (docs.length === 0 || !docs) {
             bot.sendMessage(msg.chat.id, `${doc_type} not found`)
@@ -310,7 +239,7 @@ const genViewDocFromRegexHandler = async (bot, msg, doc_type, id) => {
             const doc_file_id = docs[docs.length - 1] // get latest doc
             const channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, doc_file_id)
             await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
-            await bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
+            bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
         }
     } catch (error) {
         functions.logger.error("error\n" + error)
@@ -318,7 +247,7 @@ const genViewDocFromRegexHandler = async (bot, msg, doc_type, id) => {
     return
 }
 
-const genSendDocFromRegexHandler = async (bot, msg, doc_type, id) => {
+const genSendDocFromRegexHandler = (bot, msg, doc_type, id) => {
     let text, options
 
     text = `Reply to this text with attached ${doc_type} (note: file must be pdf, excel, or photo).\nprojectId: ${id}`
@@ -328,7 +257,7 @@ const genSendDocFromRegexHandler = async (bot, msg, doc_type, id) => {
         })
     };
 
-    await bot.sendMessage(msg.chat.id, text, options);
+    bot.sendMessage(msg.chat.id, text, options);
     return
 }
 const genViewOrSendDoc = async (bot, msg, doc_type, view_or_send) => {
@@ -355,22 +284,22 @@ const genViewOrSendDoc = async (bot, msg, doc_type, view_or_send) => {
     } else {
         text = `There are no open projects to ${view_or_send} ${doc_type}`
     }
-    await bot.sendMessage(msg.chat.id, text, opts);
+    bot.sendMessage(msg.chat.id, text, opts);
     return
 }
 
 
-const genDocPicker = async (bot, msg, view_or_send) => {
+const genDocPicker = (bot, msg, view_or_send) => {
     try {
         const opts = {
             reply_markup: JSON.stringify({
                 inline_keyboard: document_types(view_or_send)
             })
         };
-        await bot.sendMessage(msg.chat.id, 'Select type', opts);
+        bot.sendMessage(msg.chat.id, 'Select type', opts);
     } catch (error) {
         functions.logger.log(error)
-        await bot.sendMessage(msg.chat.id, 'Failed. Try again');
+        bot.sendMessage(msg.chat.id, 'Failed. Try again');
     }
     return
 }
@@ -378,7 +307,7 @@ const genDocPicker = async (bot, msg, view_or_send) => {
 async function genLoginFromRegex(bot, msg, password) {
     const user_id = msg.chat.id
     if (password == '') {
-        await bot.sendMessage(msg.chat.id, 'You forgot to add password. Use /login followed by your password. \nEx: /login Pass1234!');
+        bot.sendMessage(msg.chat.id, 'You forgot to add password. Use /login followed by your password. \nEx: /login Pass1234!');
     } else {
         try {
             const { success, remark } = await genEmployeeLogin(user_id, password, access_to.SALES)
@@ -393,10 +322,10 @@ async function genLoginFromRegex(bot, msg, password) {
                 };
             }
             await bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
-            await bot.sendMessage(msg.chat.id, remark, options)
+            bot.sendMessage(msg.chat.id, remark, options)
         } catch (error) {
             functions.logger.error("Password Error: ", error)
-            await bot.sendMessage(msg.chat.id, "Failed authenticating password. Try again.")
+            bot.sendMessage(msg.chat.id, "Failed authenticating password. Try again.")
         }
     }
     return
@@ -416,10 +345,10 @@ async function genSignupFromRegex(bot, msg, password) {
             'status': 'pending'
         }
         text = await genAddEmployee(msg.chat.id, employeeData)
-        // await bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
-        await bot.sendMessage(env_config.service.efsec_admin_chat_id, `New User: ${first_name + ' ' + last_name
+        await bot.deleteMessage(msg.chat.id, msg.message_id); // delete message to protect from password theft
+        bot.sendMessage(env_config.service.efsec_admin_chat_id, `New User: ${first_name + ' ' + last_name
             }. Wants access to ${access_to.SALES} bot.`) // notify admin
-        await bot.sendMessage(msg.chat.id, text)
+        bot.sendMessage(msg.chat.id, text)
     }
     return
 }
@@ -427,11 +356,11 @@ async function genSignupFromRegex(bot, msg, password) {
 async function genLogoutFromRegex(bot, msg) {
     const user_id = msg.chat.id
     const text = await genEmployeeLogout(user_id)
-    await bot.sendMessage(msg.chat.id, text);
+    bot.sendMessage(msg.chat.id, text);
     return
 }
 
-async function genHelpSalesFromRegex(bot, msg) {
+function genHelpSalesFromRegex(bot, msg) {
     const text = 'Welcome to the EFSEC Sales tool. Below are the available commands.\n\
     \n/start can be used to access main menu. Be sure to login before using this command.\n\
     \n/login followed by password is used to login.\
@@ -442,29 +371,11 @@ async function genHelpSalesFromRegex(bot, msg) {
     \n\nYOUR DAY TO DAY TOOLS:\n\
     \n/getproforma followed by proforma number sends informations about proforma\
     \nExample: /getproforma 122\n'
-    // \n\nEDITTING RECORDS:\n\
-    // \n/pickaproject is used to pick a project and proceed to actions menu.\
-    // \nIf you know your project\'s id, use /pickaproject followed by id to get straight to action menu.\
-    // \nExample /pickaproject 1234567\n\
-    // \n/pickabid is used to pick a bid and proceed to actions menu.\
-    // \nIf you know your bid\'s id, use /pickabid followed by id to get straight to action menu.\
-    // \nExample /pickabid 1234567\n\
-    // \n/pickasale is used to pick a retail sale and proceed to actions menu.\
-    // \nIf you know your sale\'s id, use /pickasale followed by id to get straight to action menu.\
-    // \nExample /pickasale 1234567\n\
-    // \n\nYOUR DAY TO DAY TOOLS:\n\
-    // \n/uploadBoM is used to upload Bill of Materials for existing projects.\n\
-    // \n/viewpricesfromprocurement is used to view all prices to send back to clients.\n\
-    // \n/uploadmarginsformanagerreview is used to send margins to management\n\
-    // \n/viewpricesreadyforclient is used to view prices ready to be sent to client.\n\
-    // \n/addnewproject is used to add a new project.\n\
-    // \n/addnewbid is used to add a new bid.\n\
-    // \n/addnewsale is used to add a new retail sale.\n'
-    await bot.sendMessage(msg.chat.id, text)
+    bot.sendMessage(msg.chat.id, text)
     return
 }
 
-async function genHelpProcurementFromRegex(bot, msg) {
+function genHelpProcurementFromRegex(bot, msg) {
     const text = 'Welcome to the EFSEC Procurement tool.\n\
         \nIf you are logged in, you will recieve notifications of new BoMs.\n\
         \nBelow are the available commands:\n\
@@ -504,7 +415,7 @@ async function genStartFromRegex(bot, msg, access_requested) {
     } else {
         text = 'Employee doesn\'t exist. Please sign up using /signup followed by your password \nExample. /signup Password00!\n'
     }
-    await bot.sendMessage(msg.chat.id, text, options);
+    bot.sendMessage(msg.chat.id, text, options);
     return
 }
 
@@ -516,15 +427,13 @@ async function genSalesMessageDistributer(bot, msg) {
     const loginFromRegex = msg.text.match(/\/login(.*)/)
     const logoutFromRegex = msg.text.match(/\/logout/)
     const addNewProjectFromRegex = msg.text.match(/\/addnewproject/)
-    const uploadBoM = msg.text.match(/\/uploadBoM/)
-    const viewPricesFromProcurementFromRegex = msg.text.match(/\/viewpricesfromprocurement/)
     const viewPricesReadyForClientsFromRegex = msg.text.match(/\/viewpricesreadyforclient/)
     const uploadMarginsForManagerReviewFromRegex = msg.text.match(/\/uploadmarginsformanagerreview/)
     const pickaProjectFromRegex = msg.text.match(/\/pickaproject(.*)/)
     const getPIFromRegex = msg.text.match(/\/getproforma(.*)/)
 
     if (helpSalesFromRegex) {
-        await genHelpSalesFromRegex(bot, msg)
+        genHelpSalesFromRegex(bot, msg)
     } else if (startSalesFromRegex) {
         await genStartFromRegex(bot, msg, access_to.SALES)
     } else if (signupFromRegex) {
@@ -537,10 +446,6 @@ async function genSalesMessageDistributer(bot, msg) {
         await genLogoutFromRegex(bot, msg)
     } else if (addNewProjectFromRegex) {
         await genCallbackQueryDistributer(bot, msg, 'add_project')
-    } else if (uploadBoM) {
-        await genCallbackQueryDistributer(bot, msg, 'send_bom')
-    } else if (viewPricesFromProcurementFromRegex) {
-        await genCallbackQueryDistributer(bot, msg, 'view_boqs')
     } else if (viewPricesReadyForClientsFromRegex) {
         await genCallbackQueryDistributer(bot, msg, 'prices_ready_for_client')
     } else if (uploadMarginsForManagerReviewFromRegex) {
@@ -573,7 +478,7 @@ async function genProcurementMessageDistributer(bot, msg) {
     const sendPricesFromRegex = msg.text.match(/\/sendprices/)
 
     if (helpProcurementFromRegex) {
-        await genHelpProcurementFromRegex(bot, msg)
+        genHelpProcurementFromRegex(bot, msg)
     } else if (startProcurementFromRegex) {
         await genStartFromRegex(bot, msg, access_to.PROCUREMENT)
     } else if (signupFromRegex) {
@@ -598,17 +503,18 @@ async function genReplyDistributer(bot, msg) {
     var [oldText, project_id] = msg.reply_to_message.text.split('projectId: ')
     const doc_type = oldText.trim().split(' attached ')[1].split(' (note')[0]
     let text, document, trello_card_id;
+    bot.sendChatAction(msg.chat.id, "typing")
     switch (oldText.trim()) {
         case 'Reply to this message with new amount.':
             try {
                 text = await genUpdateProject(project_id, { 'contractAmount': msg.text })
                 trello_card_id = (await genProjectWithId(project_id)).getTrelloCardId()
                 const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
-                await genTrelloAddUpdateToDescription(trello_card_id, `Contract amount updated by ${employeeName} on ${unixTimeConverter(msg.date)}. New amount is ${msg.text}`)
-                await bot.sendMessage(msg.chat.id, text)
+                genTrelloAddUpdateToDescription(trello_card_id, `Contract amount updated by ${employeeName} on ${unixTimeConverter(msg.date)}. New amount is ${msg.text}`)
+                bot.sendMessage(msg.chat.id, text)
             } catch (error) {
                 functions.logger.error(error)
-                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
+                bot.sendMessage(msg.chat.id, 'Failed. Try again')
             }
             return
         case 'Reply to this message with new deliver date (DD-MM-YYYY).':
@@ -616,11 +522,11 @@ async function genReplyDistributer(bot, msg) {
                 text = await genUpdateProject(project_id, { 'deliverBy': msg.text })
                 trello_card_id = (await genProjectWithId(project_id)).getTrelloCardId()
                 const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
-                await genTrelloAddUpdateToDescription(trello_card_id, `Delivery date updated by ${employeeName} on ${unixTimeConverter(msg.date)}. New date is ${msg.text}`)
-                await bot.sendMessage(msg.chat.id, text)
+                genTrelloAddUpdateToDescription(trello_card_id, `Delivery date updated by ${employeeName} on ${unixTimeConverter(msg.date)}. New date is ${msg.text}`)
+                bot.sendMessage(msg.chat.id, text)
             } catch (error) {
                 functions.logger.error(error)
-                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
+                bot.sendMessage(msg.chat.id, 'Failed. Try again')
             }
             return
         case 'Reply to this message with new expected payment date (DD-MM-YYYY).':
@@ -628,11 +534,11 @@ async function genReplyDistributer(bot, msg) {
                 text = await genUpdateProject(project_id, { 'expectPaymentBy': msg.text })
                 trello_card_id = (await genProjectWithId(project_id)).getTrelloCardId()
                 const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
-                await genTrelloAddUpdateToDescription(trello_card_id, `Expected Payment Date updated by ${employeeName} on ${unixTimeConverter(msg.date)}. New date is ${msg.text}`)
-                await bot.sendMessage(msg.chat.id, text)
+                genTrelloAddUpdateToDescription(trello_card_id, `Expected Payment Date updated by ${employeeName} on ${unixTimeConverter(msg.date)}. New date is ${msg.text}`)
+                bot.sendMessage(msg.chat.id, text)
             } catch (error) {
                 functions.logger.error(error)
-                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
+                bot.sendMessage(msg.chat.id, 'Failed. Try again')
             }
             return
 
@@ -645,11 +551,11 @@ async function genReplyDistributer(bot, msg) {
                 file_id = document.file_id
                 text = await genAddFileToProject(project_id, 'proforma', file_id)
                 const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
-                await genTrelloAddUpdateToDescription(trello_card_id, `Proforma added by ${employeeName} on ${unixTimeConverter(msg.date)}.`)
-                await bot.sendMessage(msg.chat.id, text)
+                genTrelloAddUpdateToDescription(trello_card_id, `Proforma added by ${employeeName} on ${unixTimeConverter(msg.date)}.`)
+                bot.sendMessage(msg.chat.id, text)
             } catch (error) {
                 functions.logger.error(error)
-                await bot.sendMessage(msg.chat.id, 'Failed. Try again')
+                bot.sendMessage(msg.chat.id, 'Failed. Try again')
             }
             return
         default:
@@ -660,20 +566,19 @@ async function genReplyDistributer(bot, msg) {
         file_id = document.file_id
         try {
             text = await genAddFileToProject(project_id, doc_type, file_id)
-            await bot.sendMessage(msg.chat.id, text)
+            bot.sendMessage(msg.chat.id, text)
             trello_card_id = (await genProjectWithId(project_id)).getTrelloCardId()
             const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
-            await genTrelloAddUpdateToDescription(
+            genTrelloAddUpdateToDescription(
                 trello_card_id,
                 `${(doc_type.charAt(0).toUpperCase() + doc_type.slice(1)).replace("_", " ")} added by ${employeeName} on ${unixTimeConverter(msg.date)}`
             )
-            await bot.sendMessage(msg.chat.id, text)
         } catch (error) {
             functions.logger.error(error)
-            await bot.sendMessage(msg.chat.id, 'Failed. Try again')
+            bot.sendMessage(msg.chat.id, 'Failed. Try again')
         }
     } else {
-        await bot.sendMessage(msg.chat.id, 'Reply unrecognized')
+        bot.sendMessage(msg.chat.id, 'Reply unrecognized')
     }
     return
 }
@@ -684,10 +589,6 @@ async function genCallbackQueryDistributer(bot, msg, action) {
     const projectPickedFromRegex = action.match(/projectPicked@(.*)/) // project id
     const statusPickedFromRegex = action.match(/statusPicked@(.*)@(.*)/) // project id @ status
     const paymentModePickedFromRegex = action.match(/paymentModePicked@(.*)@(.*)/) // project id @ paymentMode
-    const uploadBoMFromRegex = action.match(/upload_BoM@(.*)/) // project id
-    const uploadBoQFromRegex = action.match(/upload_BoQ@(.*)/) // project id
-    const downloadBoMFromRegex = action.match(/download_BoM@(.*)/) // project id
-    const downloadBoQFromRegex = action.match(/download_BoQ@(.*)/) // project id
     const sendForManagerReviewFromRegex = action.match(/send_for_manager_review@(.*)/) // project id
     const changeProjectStatusFromRegex = action.match(/change_project_status@(.*)/) // project id
     const addOrUpdateContractAmountFromRegex = action.match(/add_or_update_contract_amount@(.*)/) // project id
@@ -700,14 +601,6 @@ async function genCallbackQueryDistributer(bot, msg, action) {
     const sendDocTypeFromRegex = action.match(/send@(.*)/) // doc type
     if (projectPickedFromRegex !== null) {
         await genProjectPickedHandler(bot, msg, projectPickedFromRegex)
-    } else if (uploadBoMFromRegex !== null) {
-        await genUploadBoMFromRegexHandler(bot, msg, uploadBoMFromRegex)
-    } else if (uploadBoQFromRegex !== null) {
-        await genUploadBoQFromRegexHandler(bot, msg, uploadBoQFromRegex)
-    } else if (downloadBoMFromRegex !== null) {
-        await genDownloadBoMFromRegexHandler(bot, msg, downloadBoMFromRegex)
-    } else if (downloadBoQFromRegex !== null) {
-        await genDownloadBoQFromRegexHandler(bot, msg, downloadBoQFromRegex)
     } else if (sendForManagerReviewFromRegex !== null) {
         await genSendForManagerReviewFromRegexHandler(bot, msg, sendForManagerReviewFromRegex)
     } else if (changeProjectStatusFromRegex !== null) {
@@ -731,7 +624,7 @@ async function genCallbackQueryDistributer(bot, msg, action) {
     } else if (sendDocFromRegex !== null) {
         const doc_type = sendDocFromRegex[1]
         const id = sendDocFromRegex[2]
-        await genSendDocFromRegexHandler(bot, msg, doc_type, id)
+        genSendDocFromRegexHandler(bot, msg, doc_type, id)
     } else if (viewDocTypeFromRegex !== null) {
         const doc_type = viewDocTypeFromRegex[1]
         await genViewOrSendDoc(bot, msg, doc_type, 'view')
@@ -744,13 +637,13 @@ async function genCallbackQueryDistributer(bot, msg, action) {
         // regex not matched aka no external data passed
         switch (action) {
             case 'add_project':
-                await genSendGoogleForm(bot, msg, env_config.service.sales_project_forms_link)
+                genSendGoogleForm(bot, msg, env_config.service.sales_project_forms_link)
                 break
             case 'send_doc':
-                await genDocPicker(bot, msg, 'send')
+                genDocPicker(bot, msg, 'send')
                 break
             case 'view_doc':
-                await genDocPicker(bot, msg, 'view')
+                genDocPicker(bot, msg, 'view')
                 break
             case 'change_status':
                 await genPickInitProjectHandler(bot, msg)
@@ -759,7 +652,7 @@ async function genCallbackQueryDistributer(bot, msg, action) {
                 genLeaveHandler(bot, msg)
                 break
             default:
-                await bot.sendMessage(msg.chat.id, 'functionality not implemented');
+                bot.sendMessage(msg.chat.id, 'functionality not implemented');
                 break
         }
     }
