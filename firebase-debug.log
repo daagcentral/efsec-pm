@@ -1,0 +1,16 @@
+[debug] [2021-08-11T12:18:13.726Z] ----------------------------------------------------------------------
+[debug] [2021-08-11T12:18:13.728Z] Command:       /usr/local/bin/node /usr/local/bin/firebase deploy --only functions
+[debug] [2021-08-11T12:18:13.728Z] CLI Version:   9.14.0
+[debug] [2021-08-11T12:18:13.728Z] Platform:      darwin
+[debug] [2021-08-11T12:18:13.728Z] Node Version:  v14.15.1
+[debug] [2021-08-11T12:18:13.730Z] Time:          Wed Aug 11 2021 15:18:13 GMT+0300 (East Africa Time)
+[debug] [2021-08-11T12:18:13.730Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2021-08-11T12:18:13.734Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2021-08-11T12:18:13.735Z] > authorizing via signed-in user (gtihtina@gmail.com)
+[debug] [2021-08-11T12:18:13.735Z] [iam] checking project efsec-pm for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2021-08-11T12:18:13.736Z] >>> HTTP REQUEST POST https://cloudresourcemanager.googleapis.com/v1/projects/efsec-pm:testIamPermissions  
+ {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2021-08-11T12:18:16.482Z] <<< HTTP RESPONSE 200 {"content-type":"application/json; charset=UTF-8","vary":"X-Origin, Referer, Origin,Accept-Encoding","date":"Wed, 11 Aug 2021 12:18:16 GMT","server":"ESF","cache-control":"private","x-xss-protection":"0","x-frame-options":"SAMEORIGIN","x-content-type-options":"nosniff","server-timing":"gfet4t7; dur=1271","alt-svc":"h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000,h3-T051=\":443\"; ma=2592000,h3-Q050=\":443\"; ma=2592000,h3-Q046=\":443\"; ma=2592000,h3-Q043=\":443\"; ma=2592000,quic=\":443\"; ma=2592000; v=\"46,43\"","accept-ranges":"none","transfer-encoding":"chunked"}
+[debug] [2021-08-11T12:18:16.483Z] >>> HTTP REQUEST POST https://iam.googleapis.com/v1/projects/efsec-pm/serviceAccounts/efsec-pm@appspot.gserviceaccount.com:testIamPermissions  
+ {"permissions":["iam.serviceAccounts.actAs"]}

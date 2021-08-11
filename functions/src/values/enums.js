@@ -54,6 +54,10 @@ const access_to = {
     ADMIN: 'admin'
 }
 
+const google_sheet_functions = {
+    ADD_PROJECT: 'add_project',
+
+}
 module.exports = {
     project_status,
     employee_status,
@@ -61,5 +65,6 @@ module.exports = {
     payment_status,
     file_purpose,
     project_source,
-    access_to
+    access_to,
+    google_sheet_functions
 }

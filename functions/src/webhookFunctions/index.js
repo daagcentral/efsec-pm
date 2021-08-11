@@ -1,9 +1,10 @@
 const { genCallbackQueryDistributer, genSalesMessageDistributer, genProcurementMessageDistributer, genReplyDistributer } = require('./onTelegramAction')
 const { genTrelloActionDistributer } = require('./onTrelloAction')
 const { sales_bot, procurement_bot } = require('../bots');
-const { genNewPINumber } = require('../controllers/counterController')
+const { genNewPINumber, genNewPVNumber } = require('../controllers/counterController')
 const { genEmployeeWithAccess } = require("../controllers/employeeController");
-const { access_to } = require('../values/enums');
+const { access_to, google_sheet_functions } = require('../values/enums');
+const { genAddProjectFromGoogleSheets } = require('../webhookFunctions/onGogleSheetAction');
 
 const genSalesBotEntry = async (req, res) => {
     if (!('body' in req)) {
@@ -88,6 +89,22 @@ const genProformaInvoiceNumber = async (req, res) => {
     }
 }
 
+const genPVNumber = async (req, res) => {
+    if (!('query' in req) || !('employee_id' in req.query)) {
+        functions.logger.error('invalid PV # request')
+        return res.sendStatus(500)
+    }
+    const { employee_id, paid_to, total } = req.query
+    try {
+        const num = await genNewPVNumber()
+        sales_bot.sendMessage(employee_id, `New PV # for ${paid_to} is ${num}.\nTotal: ${total}`)
+        return res.send(200, JSON.stringify({ "pv_num": num }))
+    } catch (error) {
+        functions.logger.error(error)
+        return res.sendStatus(500)
+    }
+}
+
 const genBroadcast = async (req, res) => {
     if (!('body' in req) || !('bot' in req.body) || !('message' in req.body)) {
         functions.logger.error('invalid broadcast request')
@@ -112,10 +129,65 @@ const genBroadcast = async (req, res) => {
     return res.sendStatus(200)
 }
 
+const genPettyCashReporter = async (req, res) => {
+    if (!('body' in req) || !('entry' in req.body)) {
+        functions.logger.error('invalid report request')
+        return res.sendStatus(500)
+    }
+
+    var { entry } = req.body
+    entry = entry.map(item => {
+        const date = item.date.split(' ')[1] + ' ' + item.date.split(' ')[2] + ' ' + item.date.split(' ')[3]
+        return `${date},${item.description},${item.pv},${item.total},${item.vat}`
+    })
+    console.log(entry)
+    return res.sendStatus(200)
+}
+
+const genGoogleSheetFunctions = async (req, res) => {
+    if (!('body' in req) || !('data' in req.body)) {
+        functions.logger.error('invalid report request')
+        return res.sendStatus(500)
+    }
+    var { callFunction, data } = req.body
+    switch (callFunction) {
+        case google_sheet_functions.ADD_PROJECT:
+            await genAddProjectFromGoogleSheets(JSON.parse(data))
+            return res.sendStatus(200)
+        default:
+            return res.sendStatus(500)
+    }
+}
+
+const genClientFile = async (req, res) => {
+
+    if (!('query' in req) || !('file_id' in req.query)) {
+        functions.logger.error('invalid file request')
+        return res.sendStatus(500)
+    }
+    const { from, file_id } = req.query
+    switch (from) {
+        case access_to.SALES:
+            const path = await fetch(`https://api.telegram.org/bot${env_config.service.sales_bot_token}/getFile?file_id=${file_id}`)
+                .then(res => res.text())
+                .then(res => JSON.parse(res).result.file_path)
+            console.log(path)
+            return res.redirect(`https://api.telegram.org/file/bot${env_config.service.sales_bot_token}/${path}`)
+        default:
+            return res.send("FILE NOT FOUND")
+
+    }
+
+}
+
 module.exports = {
     genSalesBotEntry,
     genProcurementBotEntry,
     genTrelloEntry,
     genProformaInvoiceNumber,
-    genBroadcast
+    genPVNumber,
+    genBroadcast,
+    genGoogleSheetFunctions,
+    genPettyCashReporter,
+    genClientFile
 }

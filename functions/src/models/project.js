@@ -1,9 +1,10 @@
 const { file_purpose } = require('../values/enums')
 
 class Project {
-    constructor(id, clientName, projectTitle, site, contractAmount,
+    constructor(id, owner, clientName, projectTitle, site, contractAmount,
         paymentMode, deliverBy, expectPaymentBy, subject, source, BoQ, revisedBoQ, BoM, proforma, status, updates, trelloCardId) {
         this.id = id;
+        this.owner = owner
         this.clientName = clientName;
         this.projectTitle = projectTitle;
         this.site = site;
@@ -24,6 +25,9 @@ class Project {
 
     getId() {
         return this.id
+    }
+    getOwner() {
+        return this.owner
     }
     getClientName() {
         return this.clientName

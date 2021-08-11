@@ -97,12 +97,16 @@ const generateProjectsList = (projects) => {
     return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `projectPicked@${project.getId()}` }])
 }
 
-const generateProjectListForSendOrViewDoc = (projects, view_or_send, doc_type) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `${view_or_send}@${doc_type}@${project.getId()}` }])
+const generateProjectListForSendOrViewDoc = (projects, view_or_send, doc_type, employee_id) => {
+    return projects
+        .filter(project => project.getOwner() == employee_id)
+        .map(project => [{ text: respace(project.getProjectTitle()), callback_data: `${view_or_send}@${doc_type}@${project.getId()}` }])
 }
 
-const generateProjectListForStatusChange = (projects) => {
-    return projects.map(project => [{ text: respace(project.getProjectTitle()), callback_data: `change_project_status@${project.getId()}` }])
+const generateProjectListForStatusChange = (projects, employee_id) => {
+    return projects
+        .filter(project => project.getOwner() == employee_id)
+        .map(project => [{ text: respace(project.getProjectTitle()), callback_data: `change_project_status@${project.getId()}` }])
 }
 
 module.exports = {

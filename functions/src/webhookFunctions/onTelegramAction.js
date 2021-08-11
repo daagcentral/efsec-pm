@@ -48,7 +48,7 @@ const genPickInitProjectHandler = async (bot, msg) => {
     let opts, text;
     const open_projects = await genAllOpenProjectsWithStatus(project_status.INIT)
     if (open_projects) {
-        const open_projects_list = generateProjectListForStatusChange(open_projects)
+        const open_projects_list = generateProjectListForStatusChange(open_projects, msg.chat.id)
         opts = {
             reply_markup: JSON.stringify({
                 inline_keyboard: open_projects_list
@@ -108,7 +108,7 @@ const genChangeProjectStatusHandler = async (bot, msg, regex) => {
     const project_id = regex[1]
     const project = await genProjectWithId(project_id)
     const text = `Current status for ${respace(project.getProjectTitle())} is ${project.getStatus()}. Change it to:`
-    const menu = generateProjectStatusOptions(project.getId(), project.getStatus())
+    const menu = generateProjectStatusOptions(project.getId(), project.getStatus(), msg.chat.id)
     const options = {
         reply_markup: JSON.stringify({
             inline_keyboard: menu
@@ -218,7 +218,8 @@ const genPIFromRegexHandler = async (bot, msg, pi_num) => {
     try {
         const project = await genProjectWithPINum(parseInt(pi_num)) // there's only one of this
         if (project) {
-            await bot.sendMessage(msg.chat.id, `ID: ${project.getId()}\nTitle: ${respace(project.getProjectTitle())} Owner: ${"undefined"}`)
+            const owner = (await genEmployee(project.getOwner())).getFirstName()
+            await bot.sendMessage(msg.chat.id, `ID: ${project.getId()}\nTitle: ${respace(project.getProjectTitle())}\nOwner: ${owner}`)
             genCallbackQueryDistributer(bot, msg, `view@proforma@${project.getId()}`)
         } else {
             bot.sendMessage(msg.chat.id, `No project with PI # ${pi_num}`)
@@ -230,21 +231,29 @@ const genPIFromRegexHandler = async (bot, msg, pi_num) => {
 }
 
 const genViewDocFromRegexHandler = async (bot, msg, doc_type, id) => {
-    try {
-        bot.sendChatAction(msg.chat.id, "upload_document")
-        const docs = (await genProjectWithId(id)).getDoc(doc_type)
-        if (docs.length === 0 || !docs) {
-            bot.sendMessage(msg.chat.id, `${doc_type} not found`)
-        } else {
+    let channel_msg
+    bot.sendChatAction(msg.chat.id, "upload_document")
+    const docs = (await genProjectWithId(id)).getDoc(doc_type)
+    if (docs.length === 0 || !docs) {
+        bot.sendMessage(msg.chat.id, `${doc_type} not found`)
+    } else {
+        try {
             const doc_file_id = docs[docs.length - 1] // get latest doc
-            const channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, doc_file_id)
+            try {
+                channel_msg = await sales_bot.sendPhoto(env_config.service.efsec_admin_chat_id, doc_file_id)
+                console.log("1", channel_msg)
+            } catch (error) {
+                channel_msg = await sales_bot.sendDocument(env_config.service.efsec_admin_chat_id, doc_file_id)
+                console.log("2", channel_msg)
+            }
             await bot.forwardMessage(msg.chat.id, channel_msg.chat.id, channel_msg.message_id)
             bot.deleteMessage(channel_msg.chat.id, channel_msg.message_id)
+        } catch (error) {
+            functions.logger.error("error\n" + error)
+            bot.sendMessage(msg.chat.id, "Failed. Try again.")
         }
-    } catch (error) {
-        functions.logger.error("error\n" + error)
+        return
     }
-    return
 }
 
 const genSendDocFromRegexHandler = (bot, msg, doc_type, id) => {
@@ -274,7 +283,7 @@ const genViewOrSendDoc = async (bot, msg, doc_type, view_or_send) => {
             break
     }
     if (open_projects) {
-        const menu = generateProjectListForSendOrViewDoc(open_projects, view_or_send, doc_type)
+        const menu = generateProjectListForSendOrViewDoc(open_projects, view_or_send, doc_type, msg.chat.id)
         opts = {
             reply_markup: JSON.stringify({
                 inline_keyboard: menu
@@ -393,9 +402,13 @@ function genHelpProcurementFromRegex(bot, msg) {
 
 async function genStartFromRegex(bot, msg, access_requested) {
     const user_id = msg.chat.id
-    const emp = await genEmployee(user_id)
-    var text = `Welcome ${msg.from.first_name}. `
     let options
+    var text = `Welcome ${msg.from.first_name}. `
+    if (user_id === 1932113257) { // reporting personnel
+        genSendGoogleForm(bot, msg, 'https://forms.gle/nt245cLFZW2XbpjEA')
+        return
+    }
+    const emp = await genEmployee(user_id)
     if (emp) {
         if (emp.getSession() == 'live' && emp.getAccessTo().includes(access_requested)) {
             options = {
@@ -547,11 +560,15 @@ async function genReplyDistributer(bot, msg) {
                 const project = await genProjectWithPINum(parseInt(project_id.split("#")[1]))
                 project_id = project.getId()
                 trello_card_id = project.getTrelloCardId()
-                document = msg.document ?? msg.photo
-                file_id = document.file_id
+                document = msg.document
+                var photo = msg.photo
+                if (document) file_id = document.file_id
+                else if (photo) file_id = photo[3].file_id
+
                 text = await genAddFileToProject(project_id, 'proforma', file_id)
+                const file_link = `https://europe-west1-efsec-pm.cloudfunctions.net/genClientFile?file_id=${file_id}&from=sales`
                 const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
-                genTrelloAddUpdateToDescription(trello_card_id, `Proforma added by ${employeeName} on ${unixTimeConverter(msg.date)}.`)
+                genTrelloAddUpdateToDescription(trello_card_id, `Proforma added by ${employeeName} on ${unixTimeConverter(msg.date)}. Download: ${file_link}`)
                 bot.sendMessage(msg.chat.id, text)
             } catch (error) {
                 functions.logger.error(error)
@@ -569,9 +586,10 @@ async function genReplyDistributer(bot, msg) {
             bot.sendMessage(msg.chat.id, text)
             trello_card_id = (await genProjectWithId(project_id)).getTrelloCardId()
             const employeeName = (await genEmployee(msg.chat.id)).getFirstName()
+            const file_link = `https://europe-west1-efsec-pm.cloudfunctions.net/genClientFile?file_id=${file_id}&from=sales`
             genTrelloAddUpdateToDescription(
                 trello_card_id,
-                `${(doc_type.charAt(0).toUpperCase() + doc_type.slice(1)).replace("_", " ")} added by ${employeeName} on ${unixTimeConverter(msg.date)}`
+                `${(doc_type.charAt(0).toUpperCase() + doc_type.slice(1)).replace("_", " ")} added by ${employeeName} on ${unixTimeConverter(msg.date)} Download: ${file_link}`
             )
         } catch (error) {
             functions.logger.error(error)

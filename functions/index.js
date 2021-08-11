@@ -3,7 +3,17 @@ global.fetch = require("node-fetch");
 global.functions = require('firebase-functions')
 global.env_config = Object.keys(functions.config()).length ? functions.config() : require('./env.json')
 
-const { genSalesBotEntry, genProcurementBotEntry, genTrelloEntry, genProformaInvoiceNumber, genBroadcast } = require('./src/webhookFunctions/index')
+const {
+    genSalesBotEntry,
+    genProcurementBotEntry,
+    genTrelloEntry,
+    genProformaInvoiceNumber,
+    genPVNumber,
+    genBroadcast,
+    genPettyCashReporter,
+    genGoogleSheetFunctions,
+    genClientFile
+} = require('./src/webhookFunctions/index')
 
 exports.webhookSales = functions
     .region('europe-west1')
@@ -29,3 +39,24 @@ exports.genBroadcast = functions
     .region('europe-west1')
     .https
     .onRequest(genBroadcast)
+
+
+exports.genPettyCashReporter = functions
+    .region('europe-west1')
+    .https
+    .onRequest(genPettyCashReporter)
+
+exports.genPVNumber = functions
+    .region('europe-west1')
+    .https
+    .onRequest(genPVNumber)
+
+exports.genGoogleSheetFunctions = functions
+    .region('europe-west1')
+    .https
+    .onRequest(genGoogleSheetFunctions)
+
+exports.genClientFile = functions
+    .region('europe-west1')
+    .https
+    .onRequest(genClientFile)

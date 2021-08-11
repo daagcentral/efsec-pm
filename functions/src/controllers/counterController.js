@@ -35,7 +35,24 @@ const genNewLetterNumber = async () => {
     return count++
 }
 
+const genNewPVNumber = async () => {
+    const shard_id = Math.floor(Math.random() * 4).toString();
+
+    var count = await firestore.collection('pv_counter').get().then(snapshot => {
+        let total_count = 0;
+        snapshot.forEach((doc) => {
+            total_count += doc.data().count;
+        });
+
+        return total_count;
+    })
+    firestore.collection('pv_counter').doc(shard_id).update(
+        {"count": admin.firestore.FieldValue.increment(1)}
+    )
+    return count++
+}
 module.exports = {
     genNewPINumber,
-    genNewLetterNumber
+    genNewLetterNumber,
+    genNewPVNumber
 }
