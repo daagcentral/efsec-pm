@@ -8,6 +8,7 @@ const {
     genProcurementBotEntry,
     genTrelloEntry,
     genProformaInvoiceNumber,
+    genSendPIReminders,
     genPVNumber,
     genBroadcast,
     genPettyCashReporter,
@@ -60,3 +61,8 @@ exports.genClientFile = functions
     .region('europe-west1')
     .https
     .onRequest(genClientFile)
+
+exports.genSendPIReminders = functions
+    .pubsub
+    .schedule('0 9 * * 1-5')
+    .onRun(genSendPIReminders)

@@ -3,8 +3,10 @@ const { genTrelloActionDistributer } = require('./onTrelloAction')
 const { sales_bot, procurement_bot } = require('../bots');
 const { genNewPINumber, genNewPVNumber } = require('../controllers/counterController')
 const { genEmployeeWithAccess } = require("../controllers/employeeController");
-const { access_to, google_sheet_functions } = require('../values/enums');
+const { access_to, google_sheet_functions, project_status } = require('../values/enums');
 const { genAddProjectFromGoogleSheets } = require('../webhookFunctions/onGogleSheetAction');
+const { genAllOpenProjectsWithStatus } = require('../controllers/projectController');
+const { respace } = require('../controllers/utils/modelUtils');
 
 const genSalesBotEntry = async (req, res) => {
     if (!('body' in req)) {
@@ -177,7 +179,31 @@ const genClientFile = async (req, res) => {
             return res.send("FILE NOT FOUND")
 
     }
+}
 
+const genSendPIReminders = async (req, res) => {
+    var week_ago = new Date()
+    var date = week_ago.getDate() - 7
+    week_ago.setDate(date)
+    var message = {};
+    
+    (await genAllOpenProjectsWithStatus(project_status.INIT))
+        .filter(project => project.getOwner() !== "")
+        .filter(project => {
+            const timestamp = new Date(project.getTimestamp())
+            return timestamp.getTime() <= week_ago.getTime()
+        })
+        .map(project => {
+            message[project.getOwner()] = message[project.getOwner()] 
+            ? message[project.getOwner()] += `- ${respace(project.getProjectTitle())} (${project.getSource()})\n`
+            : `REMINDER\n\nGet updates on:\n- ${respace(project.getProjectTitle())} (${project.getSource()})\n`
+            return
+        })
+    Object.keys(message).map(employee_id => {
+        message[employee_id] = message[employee_id] += '\nChange status of project upon update from client'
+        sales_bot.sendMessage(employee_id, message[employee_id])
+    })
+    return res.send(200)
 }
 
 module.exports = {
@@ -185,6 +211,7 @@ module.exports = {
     genProcurementBotEntry,
     genTrelloEntry,
     genProformaInvoiceNumber,
+    genSendPIReminders,
     genPVNumber,
     genBroadcast,
     genGoogleSheetFunctions,

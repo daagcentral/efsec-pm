@@ -4,6 +4,7 @@ const createProjectObject = (doc) => {
     return new Project(
         doc.id,
         doc.data().owner,
+        doc.data().timestamp,
         doc.data().clientName,
         doc.data().projectTitle,
         doc.data().site,
